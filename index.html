@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ed TV</title>
+    <style>
+        /* --- ESTILOS GLOBALES Y CLON DE OME TV --- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #000;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+        }
+
+        /* --- LADO IZQUIERDO (INTERFAZ DE USUARIO) --- */
+        .user-interface {
+            width: 30%;
+            min-width: 300px;
+            background-color: #111;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .logo-section {
+            text-align: center;
+            margin-bottom: 40px; /* Aumenté el margen para rellenar el espacio */
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .logo i {
+            color: #ff9500;
+            margin-right: 10px;
+            font-size: 2rem;
+        }
+
+        .online-users {
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+        .active-viewers {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        /* Sección de botones de descarga eliminada */
+
+        .control-buttons {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            gap: 10px;
+        }
+
+        .control-btn {
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            color: #fff;
+            background-color: #ff9500;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        .control-btn:hover {
+            background-color: #e68500;
+            transform: translateY(-2px);
+        }
+
+        .control-btn.stop {
+            background-color: #d32f2f;
+        }
+
+        .control-btn.stop:hover {
+            background-color: #b71c1c;
+        }
+
+        /* --- LADO DERECHO (VIDEO Y CHAT) --- */
+        .video-chat-area {
+            flex-grow: 1;
+            position: relative;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* --- VIDEOS --- */
+        #strangerVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+            display: none;
+        }
+
+        #userVideo {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 200px;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 10px;
+            border: 2px solid #ff9500;
+            z-index: 3;
+            display: none;
+        }
+        
+        /* --- MENSAJES Y CONTROLES SOBRE EL VIDEO --- */
+        .overlay-message {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            color: #fff;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 20px 30px;
+            border-radius: 10px;
+            z-index: 4;
+        }
+
+        .top-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 4;
+            display: none;
+        }
+
+        .top-controls button {
+            background: rgba(0,0,0,0.5);
+            border: none;
+            color: #fff;
+            font-size: 1.2rem;
+            cursor: pointer;
+            margin-left: 15px;
+            padding: 8px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .top-controls button:hover {
+            background-color: rgba(255,255,255,0.2);
+        }
+        .top-controls button.active {
+            color: #ff9500;
+        }
+
+        .report-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.5);
+            border: none;
+            color: #fff;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 5px;
+            z-index: 4;
+            display: none;
+        }
+        .report-btn:hover {
+            color: #d32f2f;
+        }
+
+        /* --- CHAT --- */
+        .chat-overlay {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 40%;
+            max-width: 450px;
+            height: 50%;
+            background-color: rgba(0, 0, 0, 0.6);
+            border-radius: 10px;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 4;
+        }
+
+        .chat-messages {
+            flex-grow: 1;
+            padding: 15px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+        }
+
+        .message {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 15px;
+            max-width: 80%;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .message.you {
+            background-color: #007aff;
+            align-self: flex-end;
+            text-align: right;
+        }
+
+        .message.stranger {
+            background-color: #333;
+            align-self: flex-start;
+        }
+
+        .chat-input-area {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #444;
+        }
+
+        .chat-input-area input {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid #555;
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border-radius: 15px;
+            outline: none;
+        }
+
+        /* --- MODALS --- */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 10;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #222;
+            padding: 20px;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .modal-content ul {
+            list-style: none;
+            text-align: left;
+            padding: 0;
+        }
+        .modal-content li {
+            padding: 10px;
+            border-bottom: 1px solid #444;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .modal-content li:hover {
+            background-color: #333;
+        }
+        .close-modal {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close-modal:hover { color: #fff; }
+
+    </style>
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+
+    <!-- Lado Izquierdo: Interfaz de Usuario -->
+    <div class="user-interface">
+        <div class="logo-section">
+            <div class="logo">
+                <i class="fas fa-tv"></i>
+                <span>Ed TV</span>
+            </div>
+            <div class="online-users" id="globalUsersCount">312.931 usuarios en línea</div>
+            <div class="active-viewers" id="activeViewersCount">0 espectadores activos</div>
+        </div>
+
+        <!-- SECCIÓN DE BOTONES DE DESCARGA ELIMINADA -->
+
+        <div class="control-buttons">
+            <button class="control-btn" id="startButton">Iniciar</button>
+            <button class="control-btn stop" id="stopButton">Parar</button>
+            <button class="control-btn" id="countryButton">País</button>
+            <button class="control-btn" id="iamButton">Soy</button>
+        </div>
+    </div>
+
+    <!-- Lado Derecho: Video y Chat -->
+    <div class="video-chat-area">
+        <video id="strangerVideo" autoplay muted loop>
+            <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4">
+        </video>
+        <video id="userVideo" autoplay muted></video>
+
+        <button class="report-btn" id="reportButton" style="display:none;"><i class="fas fa-flag"></i></button>
+
+        <div id="startPrompt" class="overlay-message">
+            <p>Para comenzar, presiona <strong>Iniciar</strong> y acepta las reglas. Mantén tu cámara visible.</p>
+        </div>
+        
+        <div class="top-controls" id="topControls">
+            <button id="micButton"><i class="fas fa-microphone-slash"></i></button>
+            <button id="fullscreenButton"><i class="fas fa-expand"></i></button>
+            <button id="settingsButton"><i class="fas fa-cog"></i></button>
+        </div>
+
+        <div class="chat-overlay" id="chatOverlay">
+            <div class="chat-messages" id="chatMessages"></div>
+            <div class="chat-input-area">
+                <form id="messageForm">
+                    <input type="text" id="messageInput" placeholder="Escribe un mensaje..." autocomplete="off">
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal('settingsModal')">&times;</span>
+            <h2>Configuración</h2>
+            <p>Ajusta tu experiencia aquí (solo por apariencia).</p>
+        </div>
+    </div>
+    <div id="countryModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal('countryModal')">&times;</span>
+            <h2>Selecciona tu país</h2>
+            <ul>
+                <li>España</li>
+                <li>México</li>
+                <li>Argentina</li>
+                <li>Colombia</li>
+                <li>Estados Unidos</li>
+            </ul>
+        </div>
+    </div>
+    <div id="iamModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal('iamModal')">&times;</span>
+            <h2>Yo soy...</h2>
+            <ul>
+                <li>Chico</li>
+                <li>Chica</li>
+                <li>Pareja</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- ELEMENTOS DEL DOM ---
+            const startButton = document.getElementById('startButton');
+            const stopButton = document.getElementById('stopButton');
+            const strangerVideo = document.getElementById('strangerVideo');
+            const userVideo = document.getElementById('userVideo');
+            const startPrompt = document.getElementById('startPrompt');
+            const topControls = document.getElementById('topControls');
+            const chatOverlay = document.getElementById('chatOverlay');
+            const chatMessages = document.getElementById('chatMessages');
+            const messageForm = document.getElementById('messageForm');
+            const messageInput = document.getElementById('messageInput');
+            const micButton = document.getElementById('micButton');
+            const fullscreenButton = document.getElementById('fullscreenButton');
+            const reportButton = document.getElementById('reportButton');
+
+            // --- ESTADO Y LÓGICA ---
+            let userStream = null;
+            let audioStream = null;
+            let conversationHistory = [];
+            const API_URL = 'http://localhost:3001/chat';
+            const WS_URL = 'ws://localhost:3001';
+
+            // --- CONEXIÓN WEBSOCKET PARA CONTEO DE VISTANTES ---
+            const ws = new WebSocket(WS_URL);
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'viewerCount') {
+                    document.getElementById('activeViewersCount').textContent = `${data.count} espectadores activos`;
+                }
+            };
+
+            // --- SIMULACIÓN DE CONTEO GLOBAL DE USUARIOS ---
+            let globalUsers = 312931;
+            setInterval(() => {
+                const change = Math.floor(Math.random() * 21) - 10;
+                globalUsers += change;
+                if (globalUsers < 300000) globalUsers = 300000;
+                document.getElementById('globalUsersCount').textContent = `${globalUsers.toLocaleString('es-ES')} usuarios en línea`;
+            }, 5000);
+
+            // --- FUNCIONES ---
+            const addMessage = (text, sender) => {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message', sender);
+                messageDiv.textContent = text;
+                chatMessages.appendChild(messageDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            };
+            
+            const getBotResponse = async (userMessage) => {
+                conversationHistory.push({ role: 'user', content: userMessage });
+                try {
+                    const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: conversationHistory }) });
+                    const data = await response.json();
+                    const botReply = data.reply;
+                    conversationHistory.push({ role: 'assistant', content: botReply });
+                    addMessage(botReply, 'stranger');
+                } catch (error) {
+                    console.error('Error:', error);
+                    addMessage('El extraño se ha desconectado.', 'stranger');
+                }
+            };
+
+            const startMedia = async () => {
+                try {
+                    userStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                    userVideo.srcObject = userStream;
+                    userVideo.style.display = 'block';
+                } catch (error) { console.error("Error de cámara:", error); userVideo.style.display = 'none'; }
+            };
+            const stopMedia = () => {
+                if (userStream) { userStream.getTracks().forEach(t => t.stop()); userStream = null; }
+                if (audioStream) { audioStream.getTracks().forEach(t => t.stop()); audioStream = null; }
+                userVideo.style.display = 'none';
+            };
+
+            const toggleMicrophone = async () => {
+                const icon = micButton.querySelector('i');
+                if (audioStream) {
+                    audioStream.getTracks().forEach(t => t.stop());
+                    audioStream = null;
+                    icon.className = 'fas fa-microphone-slash';
+                    micButton.classList.remove('active');
+                } else {
+                    try {
+                        audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        icon.className = 'fas fa-microphone';
+                        micButton.classList.add('active');
+                    } catch (error) { console.error("Error de micrófono:", error); }
+                }
+            };
+
+            const toggleFullscreen = () => {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen();
+                    fullscreenButton.querySelector('i').className = 'fas fa-compress';
+                } else {
+                    document.exitFullscreen();
+                    fullscreenButton.querySelector('i').className = 'fas fa-expand';
+                }
+            };
+            
+            const openModal = (modalId) => { document.getElementById(modalId).style.display = 'flex'; };
+            const closeModal = (modalId) => { document.getElementById(modalId).style.display = 'none'; };
+            window.closeModal = closeModal;
+            
+            const startChat = () => {
+                startPrompt.style.display = 'none';
+                topControls.style.display = 'block';
+                chatOverlay.style.display = 'flex';
+                reportButton.style.display = 'block';
+                
+                strangerVideo.style.display = 'block';
+                strangerVideo.play();
+                startMedia();
+                getBotResponse("Hola, ¿qué tal?");
+            };
+
+            const stopChat = () => {
+                stopMedia();
+                strangerVideo.pause(); strangerVideo.currentTime = 0; strangerVideo.style.display = 'none';
+                conversationHistory = []; chatMessages.innerHTML = '';
+                topControls.style.display = 'none'; chatOverlay.style.display = 'none'; reportButton.style.display = 'none';
+                startPrompt.style.display = 'block';
+            };
+
+            // --- EVENT LISTENERS ---
+            startButton.addEventListener('click', startChat);
+            stopButton.addEventListener('click', stopChat);
+            micButton.addEventListener('click', toggleMicrophone);
+            fullscreenButton.addEventListener('click', toggleFullscreen);
+            document.getElementById('settingsButton').addEventListener('click', () => openModal('settingsModal'));
+            document.getElementById('countryButton').addEventListener('click', () => openModal('countryModal'));
+            document.getElementById('iamButton').addEventListener('click', () => openModal('iamModal'));
+            reportButton.addEventListener('click', () => alert('Usuario reportado. (Solo es una simulación)'));
+
+            messageForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const text = messageInput.value.trim();
+                if (text) { addMessage(text, 'you'); messageInput.value = ''; getBotResponse(text); }
+            });
+        });
+    </script>
+</body>
+</html>
