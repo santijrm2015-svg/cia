@@ -111,6 +111,7 @@
         .ai-response { color: #AAAAAA; }
         .error-message { color: #ff4757; }
         .system-message { color: #ffa502; }
+        .audit-report { color: #f1c40f; border-left: 3px solid #f1c40f; padding-left: 10px; margin-top: 10px;}
         @media (min-width: 768px) {
             #loginScreen { max-width: 500px; }
             #console { font-size: 15px; padding: 15px; }
@@ -253,10 +254,22 @@
         function handleInput(event) {
             if (event.key === 'Enter') {
                 const input = event.target;
-                const command = input.value.trim();
+                const fullCommand = input.value.trim();
+                const parts = fullCommand.split(' ');
+                const command = parts[0];
+                const args = parts.slice(1).join(' ');
                 const previousLine = input.parentElement;
-                previousLine.innerHTML = previousLine.innerHTML.replace('<input type="text" id="userInput">', command);
-                if (!isAiConsoleActive) { handleInitialCommand(command); } else { handleGroqCommand(command); }
+                previousLine.innerHTML = previousLine.innerHTML.replace('<input type="text" id="userInput">', fullCommand);
+
+                if (!isAiConsoleActive) {
+                    handleInitialCommand(fullCommand);
+                } else {
+                    if (command === 'auditar') {
+                        handleAuditCommand(args);
+                    } else {
+                        handleGroqCommand(fullCommand);
+                    }
+                }
             }
         }
         function handleInitialCommand(command) {
@@ -270,6 +283,45 @@
                 addLine(`'${command}' no se reconoce como un comando interno o externo.`, 'error-message');
                 createInputLine('C:\\>');
             }
+        }
+        function handleAuditCommand(url) {
+            if (!url) {
+                addLine('Uso: auditar <URL>', 'error-message');
+                createInputLine('GROQ:\\> ');
+                return;
+            }
+            addLine(`[AUDITORÍA DE SEGURIDAD] -> ${url}`, 'system-message');
+            addLine('Analizando superficie de ataque...', 'system-message');
+            setTimeout(() => {
+                const report = generateAuditReport(url);
+                const reportDiv = document.createElement('div');
+                reportDiv.className = 'audit-report';
+                reportDiv.innerHTML = `<strong>--- INFORME DE AUDITORÍA (SIMULADO) ---</strong><br><br>${report}`;
+                document.getElementById('console').appendChild(reportDiv);
+                document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight;
+                createInputLine('GROQ:\\> ');
+            }, 2000);
+        }
+        function generateAuditReport(url) {
+            const domain = new URL(url).hostname;
+            const findings = [
+                { type: 'Panel de Administración', path: '/admin', risk: 'Alto' },
+                { type: 'Panel de Administración', path: '/wp-admin', risk: 'Alto' },
+                { type: 'Panel de Administración', path: '/administrator', risk: 'Alto' },
+                { type: 'Login', path: '/login', risk: 'Medio' },
+                { type: 'Configuración', path: '/config', risk: 'Medio' },
+                { type: 'Archivo de Robots', path: '/robots.txt', risk: 'Bajo' },
+                { type: 'API Restringida', path: '/api/v1/users', risk: 'Medio' },
+                { type: 'Backup', path: '/backup.sql', risk: 'Crítico' }
+            ];
+            let report = `Objetivo: ${url}<br>`;
+            report += `Fecha: ${new Date().toISOString()}<br><br>`;
+            report += `<strong>Puntos Finales Sensibles Encontrados:</strong><br>`;
+            findings.forEach(finding => {
+                report += `- [${finding.risk}] ${domain}${finding.path} (${finding.type})<br>`;
+            });
+            report += `<br><strong>Recomendación:</strong><br>Realice una prueba de penetración manual para validar estos hallazgos. Asegúrese de que todos los paneles de administración estén debidamente protegidos con autenticación fuerte y filtros de IP.`;
+            return report;
         }
         async function handleGroqCommand(query, isWelcomeMessage = false) {
             if (!isWelcomeMessage && !query) { createInputLine('GROQ:\\> '); return; }
