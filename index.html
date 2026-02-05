@@ -30,7 +30,6 @@
         .ai-response { color: #AAAAAA; }
         .error-message { color: #ff4757; }
         .system-message { color: #ffa502; }
-        .clone-report { color: #9b59b6; border-left: 3px solid #9b59b6; padding-left: 10px; margin-top: 10px; white-space: pre-wrap;}
         .recon-report { color: #3498db; border-left: 3px solid #3498db; padding-left: 10px; margin-top: 10px;}
         @media (min-width: 768px) { #loginScreen { max-width: 500px; } #console { font-size: 15px; padding: 15px; } .profile-info span { font-size: 14px; } .cursor { width: 10px; height: 18px; } }
         @media (min-width: 1024px) { #loginScreen { max-width: 550px; } #console { font-size: 16px; } .profile-info span { font-size: 15px; } }
@@ -71,11 +70,68 @@
         function handleInput(event) { if (event.key === 'Enter') { const input = event.target; const fullCommand = input.value.trim(); const parts = fullCommand.split(' '); const command = parts[0]; const args = parts.slice(1).join(' '); const previousLine = input.parentElement; previousLine.innerHTML = previousLine.innerHTML.replace('<input type="text" id="userInput">', fullCommand); if (!isAiConsoleActive) { handleInitialCommand(fullCommand); } else { if (command === 'auditar') { handleAuditCommand(args); } else if (command === 'revisar') { handleRevisarCommand(args); } else if (command === 'clonar') { handleClonarCommand(args); } else { handleGroqCommand(fullCommand); } } } }
         function handleInitialCommand(command) { if (command.toLowerCase() === 'cmd') { addLine('Iniciando consola de inteligencia CIA...', 'system-message'); isAiConsoleActive = true; createInputLine('GROQ:\\> '); const welcomePrompt = "Saluda de forma elegante y preséntate como un asistente de inteligencia de élite."; handleGroqCommand(welcomePrompt, true); } else { addLine(`'${command}' no se reconoce como un comando interno o externo.`, 'error-message'); createInputLine('C:\\>'); } }
         function handleAuditCommand(url) { if (!url) { addLine('Uso: auditar <URL>', 'error-message'); createInputLine('GROQ:\\> '); return; } addLine(`[AUDITORÍA DE SEGURIDAD] -> ${url}`, 'system-message'); addLine('Analizando superficie de ataque...', 'system-message'); setTimeout(() => { const report = generateAuditReport(url); const reportDiv = document.createElement('div'); reportDiv.className = 'audit-report'; reportDiv.innerHTML = `<strong>--- INFORME DE AUDITORÍA (SIMULADO) ---</strong><br><br>${report}`; document.getElementById('console').appendChild(reportDiv); document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight; createInputLine('GROQ:\\> '); }, 2000); }
-        function handleRevisarCommand(url) { if (!url) { addLine('Uso: revisar <URL>', 'error-message'); createInputLine('GROQ:\\> '); return; } let domain; try { domain = new URL(url).hostname; } catch (error) { addLine(`ERROR: URL inválida. Asegúrese de que incluya el protocolo (http:// o https://).`, 'error-message'); createInputLine('GROQ:\\> '); return; } addLine(`[RECONOCIMIENTO PASIVO] -> ${url}`, 'system-message'); addLine('Buscando enlaces y archivos expuestos...', 'system-message'); setTimeout(() => { const discoveredLinks = simulateRecon(domain); const report = generateReconReport(domain, discoveredLinks); const reportDiv = document.createElement('div'); reportDiv.className = 'recon-report'; reportDiv.innerHTML = `<strong>--- INFORME DE RECONOCIMIENTO (SIMULADO) ---</strong><br><br>${report}`; document.getElementById('console').appendChild(reportDiv); document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight; createInputLine('GROQ:\\> '); }, 2500); }
         function handleClonarCommand(url) { if (!url) { addLine('Uso: clonar <URL>', 'error-message'); createInputLine('GROQ:\\> '); return; } addLine(`[CLONACIÓN / ARCHIVO] -> ${url}`, 'system-message'); addLine('Solicitando contenido HTML para archivo local...', 'system-message'); setTimeout(() => { try { const domain = new URL(url).hostname; const simulatedHtml = generateClonedHtml(url, domain); const reportDiv = document.createElement('div'); reportDiv.className = 'clone-report'; reportDiv.innerHTML = `<strong>--- CONTENIDO CLONADO (HTML) ---</strong><br><br><strong>ADVERTENCIA:</strong> Este contenido es para archivo o análisis offline. Respete los derechos de autor y las leyes de privacidad.<br><br><pre>${simulatedHtml}</pre>`; document.getElementById('console').appendChild(reportDiv); document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight; createInputLine('GROQ:\\> '); } catch (error) { addLine(`ERROR: No se pudo clonar la URL. Verifique que sea válida.`, 'error-message'); createInputLine('GROQ:\\> '); } }, 2000); }
+        
+        // --- NUEVO MANEJO DE `revisar` CON PROXY REAL ---
+        async function handleRevisarCommand(url) {
+            if (!url) {
+                addLine('Uso: revisar <URL>', 'error-message');
+                createInputLine('GROQ:\\> ');
+                return;
+            }
+            let domain;
+            try {
+                domain = new URL(url).hostname;
+            } catch (error) {
+                addLine(`ERROR: URL inválida. Asegúrese de que incluya el protocolo (http:// o https://).`, 'error-message');
+                createInputLine('GROQ:\\> ');
+                return;
+            }
+
+            addLine(`[RECONOCIMIENTO REAL] -> ${url}`, 'system-message');
+            addLine('Enviando solicitud al proxy local...', 'system-message');
+
+            try {
+                const response = await fetch('http://localhost:3001/revisar', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ url: url })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`El servidor proxy respondió con estado: ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.success) {
+                    const reportDiv = document.createElement('div');
+                    reportDiv.className = 'recon-report';
+                    let reportText = `<strong>--- INFORME DE RECONOCIMIENTO REAL ---</strong><br><br>`;
+                    reportText += `Objetivo: ${data.url}<br>`;
+                    reportText += `Recursos encontrados: ${data.count}<br><br>`;
+                    reportText += `<strong>Lista de Recursos (Enlaces, Scripts, Hojas de Estilo):</strong><br>`;
+                    data.resources.slice(0, 50).forEach(link => {
+                        reportText += `- ${link}\n`;
+                    });
+                    if (data.resources.length > 50) {
+                        reportText += `- ... y ${data.resources.length - 50} más.\n`;
+                    }
+                    reportDiv.innerHTML = reportText;
+                    document.getElementById('console').appendChild(reportDiv);
+                } else {
+                    throw new Error(data.error || 'Error desconocido del servidor proxy.');
+                }
+
+            } catch (error) {
+                console.error('Error al contactar al proxy local:', error);
+                addLine(`ERROR DE PROXY: No se pudo conectar con el servidor local. Asegúrese de que el servidor proxy está corriendo en http://localhost:3001.`, 'error-message');
+            }
+            createInputLine('GROQ:\\> ');
+        }
+        
         function generateClonedHtml(url, domain) { return `<!DOCTYPE html>\n<html lang="es">\n<head>\n    <meta charset="UTF-8">\n    <title>Clonado de ${url}</title>\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <style>\n        body { font-family: Arial, sans-serif; background-color: #f4f4f4; color: #333; padding: 20px; }\n        h1 { color: #0056b3; }\n        p { line-height: 1.6; }\n    </style>\n</head>\n<body>\n    <h1>Archivo de ${domain}</h1>\n    <p>Esta página ha sido clonada para fines de archivo o análisis offline.</p>\n    <p><strong>URL Original:</strong> <a href="${url}">${url}</a></p>\n    <p><strong>Fecha de Clonación:</strong> ${new Date().toISOString()}</p>\n    <hr>\n    <p>El contenido real de esta página se obtendría mediante una solicitud del lado del servidor en una aplicación real. Esto es una simulación.</p>\n</body>\n</html>`; }
-        function simulateRecon(domain) { const commonPaths = ['', 'admin', 'login', 'wp-admin', 'administrator', 'wp-login.php', 'config', 'backup', 'test', 'dev', 'api', 'robots.txt', 'sitemap.xml', '.env', '.git', 'database', 'uploads', 'images', 'css', 'js']; const commonFiles = ['index.html', 'index.php', 'home.html', 'main.html', 'config.php', 'wp-config.php', 'settings.py', 'database.sql', 'backup.sql', 'backup.zip', 'style.css', 'script.js', 'README.md']; let links = []; commonPaths.forEach(path => { commonFiles.forEach(file => { links.push(`${domain}/${path}/${file}`); }); links.push(`${domain}/${path}/`); }); links.push(`${domain}/`); return links; }
-        function generateReconReport(domain, links) { let report = `Objetivo: ${domain}\n`; report += `Fecha: ${new Date().toISOString()}\n\n`; report += `<strong>Enlaces y Archivos Encontrados (${links.length}):</strong>\n`; links.slice(0, 30).forEach(link => { report += `- ${link}\n`; }); if (links.length > 30) { report += `- ... y ${links.length - 30} más.\n`; } return report; }
         function generateAuditReport(url) { const domain = new URL(url).hostname; const findings = [{ type: 'Panel de Administración', path: '/admin', risk: 'Alto' }, { type: 'Panel de Administración', path: '/wp-admin', risk: 'Alto' }, { type: 'Panel de Administración', path: '/administrator', risk: 'Alto' }, { type: 'Login', path: '/login', risk: 'Medio' }, { type: 'Configuración', path: '/config', risk: 'Medio' }, { type: 'Archivo de Robots', path: '/robots.txt', risk: 'Bajo' }, { type: 'API Restringida', path: '/api/v1/users', risk: 'Medio' }, { type: 'Backup', path: '/backup.sql', risk: 'Crítico' }]; let report = `Objetivo: ${url}<br>`; report += `Fecha: ${new Date().toISOString()}<br><br>`; report += `<strong>Puntos Finales Sensibles Encontrados:</strong><br>`; findings.forEach(finding => { report += `- [${finding.risk}] ${domain}${finding.path} (${finding.type})<br>`; }); report += `<br><strong>Recomendación:</strong><br>Realice una prueba de penetración manual para validar estos hallazgos.`; return report; }
         async function handleGroqCommand(query, isWelcomeMessage = false) { if (!isWelcomeMessage && !query) { createInputLine('GROQ:\\> '); return; } if (!isWelcomeMessage && isHostingQuery(query)) { addLine(NERVOX_PROMO, 'ai-response'); createInputLine('GROQ:\\> '); return; } if (!isWelcomeMessage && !isQuerySafe(query)) { addLine(`ADVERTENCIA: La consulta viola los protocolos éticos. Solicitud denegada.`, 'error-message'); createInputLine('GROQ:\\> '); return; } if (!isWelcomeMessage) { addLine(`[IA ANALYZING] -> ${query}`, 'system-message'); } let responseLine = document.createElement('div'); responseLine.className = 'ai-response'; document.getElementById('console').appendChild(responseLine); try { const response = await fetch('https://api.groq.com/openai/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` }, body: JSON.stringify({ messages: [{ role: "user", content: query }], model: "llama-3.3-70b-versatile", temperature: 1, max_completion_tokens: 1024, top_p: 1, stream: true, stop: null }), }); if (!response.ok) { throw new Error(`Error HTTP: ${response.status}`); } const reader = response.body.getReader(); const decoder = new TextDecoder(); while (true) { const { done, value } = await reader.read(); if (done) break; const chunk = decoder.decode(value); const lines = chunk.split('\n'); for (const line of lines) { if (line.startsWith('data: ')) { const data = line.slice(6); if (data === '[DONE]') continue; try { const json = JSON.parse(data); const content = json.choices[0].delta.content; if (content) { responseLine.textContent += content; document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight; } } catch (e) {} } } } } catch (error) { console.error("Error al contactar Groq:", error); responseLine.textContent = `ERROR DE CONEXIÓN: ${error.message}`; responseLine.className = 'error-message'; } createInputLine('GROQ:\\> '); }
         window.addEventListener('load', () => { const savedUser = localStorage.getItem('sigiloUser'); if (savedUser) { currentUser = JSON.parse(savedUser); showConsole(); } });
