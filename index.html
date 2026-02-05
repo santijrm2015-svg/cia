@@ -111,7 +111,7 @@
         .ai-response { color: #AAAAAA; }
         .error-message { color: #ff4757; }
         .system-message { color: #ffa502; }
-        .audit-report { color: #f1c40f; border-left: 3px solid #f1c40f; padding-left: 10px; margin-top: 10px;}
+        .recon-report { color: #3498db; border-left: 3px solid #3498db; padding-left: 10px; margin-top: 10px;}
         @media (min-width: 768px) {
             #loginScreen { max-width: 500px; }
             #console { font-size: 15px; padding: 15px; }
@@ -266,6 +266,8 @@
                 } else {
                     if (command === 'auditar') {
                         handleAuditCommand(args);
+                    } else if (command === 'revisar') {
+                        handleRevisarCommand(args);
                     } else {
                         handleGroqCommand(fullCommand);
                     }
@@ -302,6 +304,70 @@
                 createInputLine('GROQ:\\> ');
             }, 2000);
         }
+        function handleRevisarCommand(url) {
+            if (!url) {
+                addLine('Uso: revisar <URL>', 'error-message');
+                createInputLine('GROQ:\\> ');
+                return;
+            }
+            addLine(`[RECONOCIMIENTO PASIVO] -> ${url}`, 'system-message');
+            addLine('Buscando enlaces y archivos expuestos...', 'system-message');
+            setTimeout(() => {
+                const domain = new URL(url).hostname;
+                const discoveredLinks = simulateRecon(domain);
+                const report = generateReconReport(domain, discoveredLinks);
+                const reportDiv = document.createElement('div');
+                reportDiv.className = 'recon-report';
+                reportDiv.innerHTML = `<strong>--- INFORME DE RECONOCIMIENTO (SIMULADO) ---</strong><br><br>${report}`;
+                document.getElementById('console').appendChild(reportDiv);
+                document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight;
+                createInputLine('GROQ:\\> ');
+            }, 2500);
+        }
+        function simulateRecon(domain) {
+            const commonPaths = [
+                '', 'admin', 'login', 'wp-admin', 'administrator', 'wp-login.php', 'config', 'backup', 'test', 'dev', 'api', 'robots.txt', 'sitemap.xml', '.env', '.git', 'database', 'uploads', 'images', 'css', 'js'
+            ];
+            const commonFiles = [
+                'index.html', 'index.php', 'home.html', 'main.html', 'config.php', 'wp-config.php', 'settings.py', 'database.sql', 'backup.sql', 'backup.zip', 'style.css', 'script.js', 'README.md'
+            ];
+            let links = [];
+            commonPaths.forEach(path => {
+                commonFiles.forEach(file => {
+                    links.push(`${domain}/${path}/${file}`);
+                });
+                links.push(`${domain}/${path}/`);
+            });
+            links.push(`${domain}/`);
+            return links;
+        }
+        function generateReconReport(domain, links) {
+            let report = `Objetivo: ${domain}\n`;
+            report += `Fecha: ${new Date().toISOString()}\n\n`;
+            report += `<strong>Enlaces y Archivos Encontrados (${links.length}):</strong>\n`;
+            links.slice(0, 30).forEach(link => {
+                report += `- ${link}\n`;
+            });
+            if (links.length > 30) {
+                report += `- ... y ${links.length - 30} más.\n`;
+            }
+            report += `\n<strong>Diagnóstico de Seguridad Pasivo:</strong>\n`;
+            if (links.some(l => l.includes('admin') || l.includes('wp-admin'))) {
+                report += `- [ALTO] Se encontraron posibles paneles de administración.\n`;
+            }
+            if (links.some(l => l.includes('backup') || l.includes('.sql'))) {
+                report += `- [CRÍTICO] Se encontraron posibles archivos de base de datos o backup.\n`;
+            }
+            if (links.some(l => l.includes('.env') || l.includes('config'))) {
+                report += `- [CRÍTICO] Se encontraron posibles archivos de configuración sensibles.\n`;
+            }
+            if (links.some(l => l.includes('robots.txt'))) {
+                report += `- [INFO] Archivo 'robots.txt' encontrado. Puede contener información sobre directorios que el propietario no quiere que se rastreen.\n`;
+            }
+            report += `\n<strong>Diagnóstico de Protección Anti-DDoS (Simulado):</strong>\n`;
+            report += `- No se pueden realizar pruebas activas desde el cliente. Sin embargo, la exposición de paneles de administración y archivos sensibles sin protección sugiere una superficie de ataque vulnerable. Se recomienda implementar un WAF (Web Application Firewall) como Cloudflare o ModSecurity.`;
+            return report;
+        }
         function generateAuditReport(url) {
             const domain = new URL(url).hostname;
             const findings = [
@@ -320,7 +386,7 @@
             findings.forEach(finding => {
                 report += `- [${finding.risk}] ${domain}${finding.path} (${finding.type})<br>`;
             });
-            report += `<br><strong>Recomendación:</strong><br>Realice una prueba de penetración manual para validar estos hallazgos. Asegúrese de que todos los paneles de administración estén debidamente protegidos con autenticación fuerte y filtros de IP.`;
+            report += `<br><strong>Recomendación:</strong><br>Realice una prueba de penetración manual para validar estos hallazgos.`;
             return report;
         }
         async function handleGroqCommand(query, isWelcomeMessage = false) {
