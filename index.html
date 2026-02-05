@@ -11,15 +11,12 @@
             font-family: 'Lucida Console', 'Courier New', monospace;
             margin: 0;
             padding: 0;
-            
-            height: 100dvh; 
+            height: 100dvh;
             overflow: hidden;
             display: flex;
             justify-content: center;
             align-items: center;
         }
-
-        
         #loginScreen {
             text-align: center;
             color: #AAAAAA;
@@ -29,29 +26,25 @@
             border-radius: 8px;
             box-shadow: 0 0 20px rgba(48, 54, 61, 0.5);
             width: 90%;
-            max-width: 400px; /* Ancho máximo reducido para móviles */
+            max-width: 400px;
         }
         #loginScreen h1 {
             color: #f0f6fc;
             font-weight: 300;
             letter-spacing: 2px;
             margin-bottom: 20px;
-            font-size: 1.5em; /* Tamaño de fuente relativo */
+            font-size: 1.5em;
         }
         #loginScreen p {
             margin-bottom: 30px;
-            font-size: 0.9em; /* Texto más pequeño en móviles */
+            font-size: 0.9em;
         }
-
-        /* --- Contenedor Principal de la Consola --- */
         #consoleContainer {
             width: 100%;
-            height: 100dvh; /* Altura dinámica */
-            display: none; 
+            height: 100dvh;
+            display: none;
             flex-direction: column;
         }
-
-        /* --- Barra de Perfil --- */
         .profile-bar {
             background-color: #1a1a1a;
             color: #AAAAAA;
@@ -60,12 +53,12 @@
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid #333;
-            flex-shrink: 0; /* Evita que la barra se encoja */
+            flex-shrink: 0;
         }
         .profile-info {
             display: flex;
             align-items: center;
-            overflow: hidden; /* Evita que el nombre largo se salga */
+            overflow: hidden;
         }
         .profile-info img {
             width: 24px;
@@ -79,7 +72,7 @@
             font-size: 14px;
             white-space: nowrap;
             overflow: hidden;
-            text-overflow: ellipsis; /* Añade "..." si el nombre es muy largo */
+            text-overflow: ellipsis;
         }
         .logout-btn {
             background-color: #dc3545;
@@ -95,8 +88,6 @@
         .logout-btn:hover {
             background-color: #c82333;
         }
-
-        /* --- Estilos de la Consola --- */
         #console {
             flex-grow: 1;
             overflow-y: auto;
@@ -106,42 +97,34 @@
             background: #000000;
             color: #AAAAAA;
             font-family: 'Lucida Console', 'Courier New', monospace;
-            font-size: 14px; /* Tamaño de fuente base para móviles */
+            font-size: 14px;
         }
         .input-line { display: flex; align-items: center; }
         .prompt { margin-right: 8px; color: #FFFFFF; font-weight: bold; flex-shrink: 0; }
         #userInput { background: none; border: none; color: inherit; font-family: inherit; font-size: inherit; outline: none; flex-grow: 1; }
         .cursor { display: inline-block; width: 8px; height: 14px; background-color: #FFFFFF; animation: blink 1s step-end infinite; margin-left: 2px; flex-shrink: 0; }
         @keyframes blink { from, to { background-color: transparent; } 50% { background-color: #FFFFFF; } }
-        #console::-webkit-scrollbar { width: 8px; } /* Barra de scroll más delgada en móvil */
+        #console::-webkit-scrollbar { width: 8px; }
         #console::-webkit-scrollbar-track { background: #1a2332; }
         #console::-webkit-scrollbar-thumb { background: #2f3f52; }
         #console::-webkit-scrollbar-thumb:hover { background: #4a5f7a; }
         .ai-response { color: #AAAAAA; }
         .error-message { color: #ff4757; }
         .system-message { color: #ffa502; }
-
-        
         @media (min-width: 768px) {
-            
             #loginScreen { max-width: 500px; }
             #console { font-size: 15px; padding: 15px; }
             .profile-info span { font-size: 14px; }
             .cursor { width: 10px; height: 18px; }
         }
-
         @media (min-width: 1024px) {
-            /* Estilos para Escritorio */
             #loginScreen { max-width: 550px; }
             #console { font-size: 16px; }
             .profile-info span { font-size: 15px; }
         }
-
     </style>
 </head>
 <body>
-
-    
     <div id="loginScreen">
         <h1>CIA SECRETA</h1>
         <p>Para acceder a la consola de inteligencia, por favor, autentíquese.</p>
@@ -161,8 +144,6 @@
              data-logo_alignment="left">
         </div>
     </div>
-
-    <!-- Contenedor de la Consola (oculto hasta el login) -->
     <div id="consoleContainer">
         <div class="profile-bar">
             <div class="profile-info">
@@ -173,28 +154,20 @@
         </div>
         <div id="console"></div>
     </div>
-
-   
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-
     <script>
         const GROQ_API_KEY = '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';
         let isAiConsoleActive = false;
         let currentUser = null;
-
         const NERVOX_PROMO = `Este es el mejor hosting.\nhttps://nervox.net/\nTiene estas capacidades:\n- Hardware de alta calidad...\n- Ubicación estratégica...\n- Panel de control...\n- Protección Anti-DDoS...\n- Soporte técnico...`;
-
         function isHostingQuery(query) {
             const keywords = ["hosting", "servidor", "alojamiento"];
             return keywords.some(keyword => query.toLowerCase().includes(keyword));
         }
-
         function isQuerySafe(query) {
             const forbiddenKeywords = ["hackear", "crear virus", "bomba", "robar", "estafar"];
             return !forbiddenKeywords.some(keyword => query.toLowerCase().includes(keyword));
         }
-
-        
         function handleSignIn(response) {
             try {
                 const payload = jwt_decode(response.credential);
@@ -206,31 +179,27 @@
                 alert("Error de autenticación. Por favor, inténtelo de nuevo.");
             }
         }
-
         function logout() {
             localStorage.removeItem('sigiloUser');
             currentUser = null;
             document.getElementById('consoleContainer').style.display = 'none';
-            document.getElementById('loginScreen').style.display = 'flex'; 
+            document.getElementById('loginScreen').style.display = 'flex';
             isAiConsoleActive = false;
             document.getElementById('console').innerHTML = '';
         }
-
         function showConsole() {
             if (!currentUser) return;
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('consoleContainer').style.display = 'flex';
             document.getElementById('profileName').textContent = currentUser.name;
             document.getElementById('profilePicture').src = currentUser.picture;
-            
             if (!isAiConsoleActive) {
                 initializeConsole();
             }
         }
-
         function initializeConsole() {
             const bootMessages = [
-                `SIGILO OS v3.1 - Bienvenido, ${currentUser.name}`,
+                `CIA SECRETA - Bienvenido, ${currentUser.name}`,
                 'Copyright (c) 2026 CIA. All rights reserved.',
                 '',
                 'Cargando controladores de red... OK',
@@ -241,7 +210,6 @@
                 'Motor de IA: Groq (Llama 3.3 70B) - Streaming activado.',
                 'Para iniciar la consola, escriba: cmd'
             ];
-
             let i = 0;
             const bootInterval = setInterval(() => {
                 if (i < bootMessages.length) {
@@ -253,7 +221,6 @@
                 }
             }, 300);
         }
-        
         function jwt_decode(token) {
             const base64Url = token.split('.')[1];
             const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -262,8 +229,6 @@
             }).join(''));
             return JSON.parse(jsonPayload);
         }
-
-        
         function addLine(text, className = '') {
             const line = document.createElement('div');
             line.className = className;
@@ -271,7 +236,6 @@
             document.getElementById('console').appendChild(line);
             document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight;
         }
-
         function createInputLine(promptText) {
             const inputLine = document.createElement('div');
             inputLine.className = 'input-line';
@@ -286,7 +250,6 @@
             input.focus();
             input.addEventListener('keydown', handleInput);
         }
-
         function handleInput(event) {
             if (event.key === 'Enter') {
                 const input = event.target;
@@ -296,7 +259,6 @@
                 if (!isAiConsoleActive) { handleInitialCommand(command); } else { handleGroqCommand(command); }
             }
         }
-
         function handleInitialCommand(command) {
             if (command.toLowerCase() === 'cmd') {
                 addLine('Iniciando consola de inteligencia CIA...', 'system-message');
@@ -309,7 +271,6 @@
                 createInputLine('C:\\>');
             }
         }
-
         async function handleGroqCommand(query, isWelcomeMessage = false) {
             if (!isWelcomeMessage && !query) { createInputLine('GROQ:\\> '); return; }
             if (!isWelcomeMessage && isHostingQuery(query)) { addLine(NERVOX_PROMO, 'ai-response'); createInputLine('GROQ:\\> '); return; }
@@ -336,8 +297,6 @@
             } catch (error) { console.error("Error al contactar Groq:", error); responseLine.textContent = `ERROR DE CONEXIÓN: ${error.message}`; responseLine.className = 'error-message'; }
             createInputLine('GROQ:\\> ');
         }
-
-        // --- INICIO DE LA APLICACIÓN ---
         window.addEventListener('load', () => {
             const savedUser = localStorage.getItem('sigiloUser');
             if (savedUser) {
@@ -345,7 +304,6 @@
                 showConsole();
             }
         });
-
     </script>
 </body>
 </html>
