@@ -9,7 +9,10 @@
         body { background-color: #000000; font-family: 'Lucida Console', 'Courier New', monospace; margin: 0; padding: 0; height: 100dvh; overflow: hidden; display: flex; justify-content: center; align-items: center; }
         #loginScreen { text-align: center; color: #AAAAAA; padding: 20px; background: rgba(13, 17, 23, 0.8); border: 1px solid #30363d; border-radius: 8px; box-shadow: 0 0 20px rgba(48, 54, 61, 0.5); width: 90%; max-width: 400px; }
         #loginScreen h1 { color: #f0f6fc; font-weight: 300; letter-spacing: 2px; margin-bottom: 20px; font-size: 1.5em; }
-        #loginScreen p { margin-bottom: 30px; font-size: 0.9em; }
+        #loginScreen p { margin-bottom: 20px; font-size: 0.9em; }
+        #loginScreen input { width: 100%; padding: 10px; margin-bottom: 20px; background: #222; border: 1px solid #555; color: #fff; border-radius: 4px; box-sizing: border-box; }
+        #loginScreen button { width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 16px; }
+        #loginScreen button:hover { background-color: #0056b3; }
         #consoleContainer { width: 100%; height: 100dvh; display: none; flex-direction: column; }
         .profile-bar { background-color: #1a1a1a; color: #AAAAAA; padding: 8px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; flex-shrink: 0; }
         .profile-info { display: flex; align-items: center; overflow: hidden; }
@@ -37,31 +40,34 @@
         @media (min-width: 768px) { #loginScreen { max-width: 500px; } #console { font-size: 15px; padding: 15px; } .profile-info span { font-size: 14px; } .cursor { width: 10px; height: 18px; } }
         @media (min-width: 1024px) { #loginScreen { max-width: 550px; } #console { font-size: 16px; } .profile-info span { font-size: 15px; } }
     </style>
-    <!-- SDKs de Firebase -->
+    <!-- Solo se necesitan los SDKs de App y Firestore -->
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
+    <!-- --- NUEVA PANTALLA DE LOGIN --- -->
     <div id="loginScreen">
         <h1>CIA SECRETA</h1>
-        <p>Para acceder a la consola de inteligencia, por favor, autentíquese.</p>
-        <div id="g_id_onload" data-client_id="544671613331-5glj9smclnakr9msr7vkastgon9tq03v.apps.googleusercontent.com" data-context="signin" data-ux_mode="popup" data-callback="handleSignIn" data-auto_prompt="false"></div>
-        <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="filled_black" data-text="signin_with" data-size="large" data-logo_alignment="left"></div>
+        <p>Introduce un nombre de usuario para acceder a la consola.</p>
+        <form id="loginForm">
+            <input type="text" id="usernameInput" placeholder="Tu nombre de agente" required>
+            <button type="submit">ENTRAR</button>
+        </form>
     </div>
+
     <div id="consoleContainer">
         <div class="profile-bar">
             <div class="profile-info">
-                <img id="profilePicture" src="" alt="Profile">
-                <span id="profileName">Usuario</span>
+                <!-- Imagen de perfil genérica -->
+                <img src="https://i.pravatar.cc/150?u=a042581f4e29026704d" alt="Profile">
+                <span id="profileName">Agente</span>
             </div>
             <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
         </div>
         <div id="console"></div>
     </div>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script>
-        // --- CONFIGURACIÓN DE FIREBASE (ACTUALIZADA) ---
+        // --- CONFIGURACIÓN DE FIREBASE (SIN CAMBIOS) ---
         const firebaseConfig = {
             apiKey: "AIzaSyACZbGOB0wLkKKaVrcUp88rklLGR-atXpM",
             authDomain: "ciaproyect-86a79.firebaseapp.com",
@@ -72,11 +78,9 @@
             appId: "1:121043448227:web:c1223eb67aaf018a24aa16",
             measurementId: "G-YYDFQGEXD7"
         };
-        // Inicializar Firebase
         firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
         const db = firebase.firestore();
-        // --- FIN DE LA CONFIGURACIÓN DE FIREBASE ---
+        // --- FIN DE LA CONFIGURACIÓN ---
 
         const GROQ_API_KEY = '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';
         let isAiConsoleActive = false;
@@ -86,30 +90,24 @@
         function isHostingQuery(query) { const keywords = ["hosting", "servidor", "alojamiento"]; return keywords.some(keyword => query.toLowerCase().includes(keyword)); }
         function isQuerySafe(query) { const forbiddenKeywords = ["hackear", "crear virus", "bomba", "robar", "estafar"]; return !forbiddenKeywords.some(keyword => query.toLowerCase().includes(keyword)); }
 
-        function handleSignIn(response) {
-            try {
-                const credential = firebase.auth.GoogleAuthProvider.credential(response.credential);
-                auth.signInWithCredential(credential).then((userCredential) => {
-                    const user = userCredential.user;
-                    currentUser = { name: user.displayName, email: user.email, picture: user.photoURL, uid: user.uid };
-                    showConsole();
-                }).catch((error) => {
-                    console.error("Error de autenticación en Firebase:", error);
-                    alert("Error de autenticación. Por favor, inténtelo de nuevo.");
-                });
-            } catch (error) {
-                console.error("Error al procesar la respuesta de Google:", error);
-                alert("Error de autenticación. Por favor, inténtelo de nuevo.");
+        // --- NUEVO: MANEJO DE LOGIN SIMPLE ---
+        document.getElementById('loginForm').addEventListener('submit', function(event) {
+            event.preventDefault(); // Evita que la página se recargue
+            const username = document.getElementById('usernameInput').value.trim();
+            if (username) {
+                currentUser = { name: username, uid: username.toLowerCase().replace(/\s+/g, '_') }; // Creamos un UID simple
+                localStorage.setItem('sigiloUser', JSON.stringify(currentUser));
+                showConsole();
             }
-        }
+        });
 
         function logout() {
-            auth.signOut().then(() => {
-                currentUser = null; isAiConsoleActive = false;
-                document.getElementById('consoleContainer').style.display = 'none';
-                document.getElementById('loginScreen').style.display = 'flex';
-                document.getElementById('console').innerHTML = '';
-            }).catch((error) => { console.error("Error al cerrar sesión:", error); });
+            localStorage.removeItem('sigiloUser');
+            currentUser = null;
+            isAiConsoleActive = false;
+            document.getElementById('consoleContainer').style.display = 'none';
+            document.getElementById('loginScreen').style.display = 'flex';
+            document.getElementById('console').innerHTML = '';
         }
 
         function showConsole() {
@@ -117,7 +115,6 @@
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('consoleContainer').style.display = 'flex';
             document.getElementById('profileName').textContent = currentUser.name;
-            document.getElementById('profilePicture').src = currentUser.picture;
             if (!isAiConsoleActive) { initializeConsole(); }
         }
 
@@ -247,7 +244,14 @@
             createInputLine('GROQ:\\> ');
         }
 
-        window.addEventListener('load', () => { auth.onAuthStateChanged((user) => { if (user) { currentUser = { name: user.displayName, email: user.email, picture: user.photoURL, uid: user.uid }; showConsole(); } else { document.getElementById('consoleContainer').style.display = 'none'; document.getElementById('loginScreen').style.display = 'flex'; } }); });
+        // --- NUEVO: Listener de carga simplificado ---
+        window.addEventListener('load', () => {
+            const savedUser = localStorage.getItem('sigiloUser');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                showConsole();
+            }
+        });
     </script>
 </body>
 </html>
