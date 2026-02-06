@@ -266,115 +266,92 @@
             }
         }
 
-        // --- NUEVO Y COMPLETAMENTE REAL: COMANDO AUDITORÍA ---
+        // --- COMPLETAMENTE REESCRITO: AUDITORÍA REAL Y DETALLADA ---
         async function handleAuditCommand(url) {
             if (!url) { addLine('Uso: auditar <URL>', 'error-message'); createInputLine('GROQ:\\> '); return; }
             let targetUrl;
             try { targetUrl = new URL(url); } catch (error) { addLine(`ERROR: URL inválida. Asegúrese de que incluya el protocolo (http:// o https://).`, 'error-message'); createInputLine('GROQ:\\> '); return; }
 
-            addLine(`[AUDITORÍA DE SEGURIDAD ACTIVA] -> ${targetUrl.href}`, 'system-message');
-            addLine('Iniciando escaneo de reconocimiento en el objetivo...', 'system-message');
+            addLine(`[AUDITORÍA PROFUNDA] -> ${targetUrl.href}`, 'system-message');
+            addLine('Conectando y extrayendo datos del objetivo...', 'system-message');
             createInputLine('GROQ:\\> ');
 
             const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-            const domain = targetUrl.hostname;
+            const fetchUrl = proxyUrl + targetUrl.href;
 
-            // Lista de rutas sensibles a comprobar
-            const pathsToCheck = [
-                { path: '/', desc: 'Página principal' },
-                { path: '/admin', desc: 'Panel de Administración (Genérico)' },
-                { path: '/administrator', desc: 'Panel de Administración (Alt.)' },
-                { path: '/wp-admin', desc: 'Panel de WordPress' },
-                { path: '/wp-login.php', desc: 'Login de WordPress' },
-                { path: '/phpmyadmin', desc: 'phpMyAdmin' },
-                { path: '/cpanel', desc: 'cPanel' },
-                { path: '/login', desc: 'Página de Login (Genérica)' },
-                { path: '/robots.txt', desc: 'Archivo de Robots' },
-                { path: '/sitemap.xml', desc: 'Sitemap XML' },
-                { path: '/.env', desc: 'Archivo de Entorno' },
-                { path: '/.git/HEAD', desc: 'Carpeta .git' },
-                { path: '/config.php', desc: 'Configuración PHP' },
-                { path: '/web.config', desc: 'Configuración IIS' },
-                { path: '/backup.sql', desc: 'Archivo de Backup SQL' },
-                { path: '/backup.zip', desc: 'Archivo de Backup ZIP' },
-                { path: '/test', desc: 'Directorio de Pruebas' },
-                { path: '/dev', desc: 'Directorio de Desarrollo' },
-                { path: '/api', desc: 'Punto de Acceso a la API' },
-                { path: '/uploads', desc: 'Directorio de Subidas' },
-                { path: '/images', desc: 'Directorio de Imágenes' },
-            ];
+            try {
+                const response = await fetch(fetchUrl);
+                const htmlText = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(htmlText, 'text/html');
 
-            const checkPromises = pathsToCheck.map(async item => {
-                try {
-                    // Usamos una petición HEAD para ser más eficientes, solo nos interesa el estado
-                    const response = await fetch(proxyUrl + targetUrl.origin + item.path, { method: 'HEAD' });
-                    return { ...item, status: response.status, found: true };
-                } catch (error) {
-                    // El proxy o la red falló
-                    return { ...item, status: 'ERROR', found: false, error: error.message };
-                }
-            });
-
-            const results = await Promise.allSettled(checkPromises);
-            
-            let reportHtml = `<strong>--- INFORME DE AUDITORÍA (REAL) ---</strong><br><br>`;
-            reportHtml += `Objetivo: ${targetUrl.href}<br>`;
-            reportHtml += `Fecha: ${new Date().toISOString()}<br><br>`;
-            
-            // Analizar tecnología del servidor (de la primera petición)
-            const serverInfo = results[0].status === 'ERROR' ? 'No se pudo determinar' : results[0].value.status;
-            reportHtml += `<strong>Estado del Servidor Principal:</strong> ${serverInfo}<br><br>`;
-            reportHtml += `<strong>Puntos Finales Analizados:</strong><br>`;
-
-            const findings = { critical: [], high: [], medium: [], low: [], info: [], error: [] };
-
-            results.forEach(result => {
-                if (result.status === 'fulfilled') {
-                    const { path, desc, status } = result.value;
-                    const statusText = `${status} ${status === 200 ? 'OK' : status === 403 ? 'Forbidden' : status === 404 ? 'Not Found' : status}`;
-                    let finding = { path, desc, statusText };
-
-                    if (status === 200) {
-                        if (path.includes('admin') || path.includes('config') || path.includes('.env')) findings.critical.push(finding);
-                        else if (path.includes('login') || path.includes('backup')) findings.high.push(finding);
-                        else findings.info.push(finding);
-                    } else if (status === 403) {
-                        findings.high.push({ ...finding, statusText: `${statusText} (Acceso Denegado)` });
-                    } else if (status === 404) {
-                        findings.low.push(finding);
+                let reportHtml = `<strong>--- INFORME DE AUDITORÍA PROFUNDA (REAL) ---</strong><br><br>`;
+                reportHtml += `Objetivo: ${targetUrl.href}<br>`;
+                reportHtml += `Fecha: ${new Date().toISOString()}<br><br>`;
+                
+                // 1. Información del Servidor
+                reportHtml += `<strong>1. Información del Servidor</strong><br>`;
+                reportHtml += `- Estado HTTP: <span class="finding-info">${response.status} ${response.statusText}</span><br>`;
+                const serverHeader = response.headers.get('Server'); reportHtml += `- Servidor: <span class="finding-info">${serverHeader || 'No especificado'}</span><br>`;
+                const poweredByHeader = response.headers.get('X-Powered-By'); reportHtml += `- Powered By: <span class="finding-info">${poweredByHeader || 'No especificado'}</span><br>`;
+                reportHtml += `- Cabecera de Seguridad (HSTS): <span class="${response.headers.get('Strict-Transport-Security') ? 'finding-medium' : 'finding-high'}">${response.headers.get('Strict-Transport-Security') ? 'Presente' : 'AUSENTE (Riesgo de seguridad)'}</span><br><br>`;
+                
+                // 2. Análisis del Contenido
+                reportHtml += `<strong>2. Análisis del Contenido</strong><br>`;
+                reportHtml += `- Título: <span class="finding-info">${doc.title || 'Sin título'}</span><br>`;
+                const metaDesc = doc.querySelector('meta[name="description"]')?.content; reportHtml += `- Meta Descripción: <span class="finding-info">${metaDesc || 'No especificada'}</span><br>`;
+                
+                // Tecnologías Detectadas
+                const techStack = new Set();
+                if (htmlText.includes('wp-content') || doc.querySelector('meta[name="generator"]')?.content.includes('WordPress')) techStack.add('WordPress');
+                if (htmlText.includes('jquery')) techStack.add('jQuery');
+                if (htmlText.includes('bootstrap')) techStack.add('Bootstrap');
+                if (htmlText.includes('react') || htmlText.includes('React')) techStack.add('React');
+                if (htmlText.includes('vue') || htmlText.includes('Vue')) techStack.add('Vue.js');
+                if (htmlText.includes('angular')) techStack.add('Angular');
+                if (doc.querySelector('meta[name="generator"]')) techStack.add(doc.querySelector('meta[name="generator"]').content);
+                reportHtml += `- Tecnologías Detectadas: <span class="finding-info">${techStack.size > 0 ? [...techStack].join(', ') : 'Ninguna conocida'}</span><br><br>`;
+                
+                // 3. Escaneo de Rutas (reutilizando la lógica anterior)
+                reportHtml += `<strong>3. Escaneo de Rutas Sensibles</strong><br>`;
+                const pathsToCheck = ['/admin', '/wp-admin', '/phpmyadmin', '/.env', '/robots.txt', '/sitemap.xml', '/backup.sql'];
+                const checkPromises = pathsToCheck.map(path => fetch(proxyUrl + targetUrl.origin + path, { method: 'HEAD' }).then(r => ({path, status: r.status})).catch(() => ({path, status: 'ERROR'})));
+                const pathResults = await Promise.allSettled(checkPromises);
+                pathResults.forEach(r => {
+                    if (r.status === 'fulfilled') {
+                        const {path, status} = r.value;
+                        let statusText = `${status} ${status === 200 ? 'OK' : status === 403 ? 'Forbidden' : status === 404 ? 'Not Found' : status}`;
+                        let className = 'finding-info';
+                        if (status === 200) className = 'finding-critical';
+                        if (status === 403) className = 'finding-high';
+                        reportHtml += `- <span class="${className}">[${statusText}] ${targetUrl.origin}${path}</span><br>`;
                     }
-                } else {
-                    findings.error.push({ path: result.reason.path || 'Desconocido', error: result.reason.message });
-                }
-            });
-
-            const printFindings = (arr, className) => {
-                if (arr.length === 0) return;
-                arr.forEach(f => {
-                    reportHtml += `<span class="${className}">[${f.statusText}] ${targetUrl.origin}${f.path} (${f.desc})</span><br>`;
                 });
-            };
-            
-            printFindings(findings.critical, 'finding-critical');
-            printFindings(findings.high, 'finding-high');
-            printFindings(findings.medium, 'finding-medium');
-            printFindings(findings.low, 'finding-low');
-            printFindings(findings.info, 'finding-info');
+                reportHtml += `<br>`;
 
-            if (findings.error.length > 0) {
-                reportHtml += `<br><strong>Errores de Red:</strong><br>`;
-                findings.error.forEach(f => reportHtml += `<span class="error-message">No se pudo escanear ${f.path}: ${f.error}</span><br>`);
+                // 4. Análisis de Recursos
+                reportHtml += `<strong>4. Análisis de Recursos</strong><br>`;
+                const scripts = doc.querySelectorAll('script[src]').length; const stylesheets = doc.querySelectorAll('link[rel="stylesheet"]').length; const images = doc.querySelectorAll('img').length;
+                reportHtml += `- Scripts: ${scripts}<br>`;
+                reportHtml += `- Hojas de Estilo: ${stylesheets}<br>`;
+                reportHtml += `- Imágenes: ${images}<br>`;
+                const externalLinks = Array.from(doc.querySelectorAll('a[href]')).filter(a => !a.href.includes(targetUrl.hostname)).length;
+                reportHtml += `- Enlaces Externos: ${externalLinks}<br><br>`;
+                
+                reportHtml += `<strong>Recomendación:</strong><br>Revise los hallazgos marcados como CRÍTICO o ALTO. La ausencia de cabeceras de seguridad puede exponer la aplicación a riesgos.`;
+                
+                const reportDiv = document.createElement('div');
+                reportDiv.className = 'audit-report';
+                reportDiv.innerHTML = reportHtml;
+                document.getElementById('console').appendChild(reportDiv);
+                document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight;
+
+                saveLogToFirestore(`auditar ${url}`, reportDiv.innerHTML, 'audit', currentChatId);
+
+            } catch (error) {
+                console.error('Error durante la auditoría:', error);
+                addLine(`ERROR DE AUDITORÍA: No se pudo analizar el dominio. Razón: ${error.message}`, 'error-message');
             }
-
-            reportHtml += `<br><strong>Recomendación:</strong><br>Investigue los hallazgos de riesgo CRÍTICO y ALTO. Un estado 403 indica que el recurso existe pero está protegido.`;
-            
-            const reportDiv = document.createElement('div');
-            reportDiv.className = 'audit-report';
-            reportDiv.innerHTML = reportHtml;
-            document.getElementById('console').appendChild(reportDiv);
-            document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight;
-
-            saveLogToFirestore(`auditar ${url}`, reportDiv.innerHTML, 'audit', currentChatId);
         }
 
         async function handleRevisarCommand(url) {
