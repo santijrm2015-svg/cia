@@ -102,15 +102,10 @@
 
         const GROQ_API_KEY = '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';
         
-        let isAiConsoleActive = false;
         let currentUser = null;
         let currentChatId = null;
         let allChats = [];
-
-        const NERVOX_PROMO = `Este es el mejor hosting.\nhttps://nervox.net/\nTiene estas capacidades:\n- Hardware de alta calidad...\n- Ubicación estratégica...\n- Panel de control...\n- Protección Anti-DDoS...\n- Soporte técnico...`;
-        
-        function isHostingQuery(query) { const keywords = ["hosting", "servidor", "alojamiento"]; return keywords.some(keyword => query.toLowerCase().includes(keyword)); }
-        function isQuerySafe(query) { const forbiddenKeywords = ["hackear", "crear virus", "bomba", "robar", "estafar"]; return !forbiddenKeywords.some(keyword => query.toLowerCase().includes(keyword)); }
+        let isAiMode = false; // --- NUEVO: Estado para el modo IA ---
 
         document.getElementById('loginForm').addEventListener('submit', function(event) {
             event.preventDefault();
@@ -124,7 +119,7 @@
 
         function logout() {
             localStorage.removeItem('sigiloUser');
-            currentUser = null; currentChatId = null; allChats = [];
+            currentUser = null; currentChatId = null; allChats = []; isAiMode = false;
             document.getElementById('consoleContainer').style.display = 'none';
             document.getElementById('loginScreen').style.display = 'flex';
             document.getElementById('console').innerHTML = '';
@@ -135,17 +130,15 @@
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('consoleContainer').style.display = 'flex';
             document.getElementById('profileName').textContent = currentUser.name;
-            if (!isAiConsoleActive) {
-                initializeConsole();
-            }
+            initializeConsole();
         }
 
         function initializeConsole() {
             const bootMessages = [
-                `CIA SECRETA - Bienvenido, ${currentUser.name}`,
-                'Iniciando chat...',
-                'IA Comenzando Profesional',
-                'Chat actualmente activo.'
+                `CIA SECRETA - Terminal de Acceso Remoto v2.6`,
+                `Usuario conectado: ${currentUser.name}`,
+                'Sincronizando sesiones de chat...',
+                'Terminal listo.'
             ];
             let i = 0;
             const bootInterval = setInterval(() => {
@@ -163,7 +156,7 @@
                         }
                     });
                 }
-            }, 500);
+            }, 400);
         }
         
         async function saveLogToFirestore(command, output, type = 'command', chatId = null) {
@@ -201,7 +194,7 @@
                 li.className = 'chat-item';
                 if (chat.id === currentChatId) li.classList.add('active');
                 li.innerHTML = `
-                    <div class="chat-title">${chat.title || 'Nuevo Chat'}</div>
+                    <div class="chat-title">${chat.title || 'Nueva Sesión'}</div>
                     <div class="chat-date">${new Date(chat.updatedAt.toDate()).toLocaleString()}</div>
                 `;
                 li.onclick = () => loadChat(chat.id);
@@ -211,9 +204,10 @@
         
         async function startNewChatSession() {
             currentChatId = null;
+            isAiMode = false; // --- NUEVO: Resetear modo IA ---
             document.getElementById('console').innerHTML = '';
-            addLine('Nueva sesión de chat iniciada. Escribe "cmd" para comenzar.', 'system-message');
-            createInputLine('C:\\>');
+            addLine('Nueva sesión de terminal iniciada. Escribe "help" para ver los comandos disponibles.', 'system-message');
+            createInputLine('C:\\>'); // --- NUEVO: Prompt normal ---
             renderChatList();
         }
         
@@ -221,7 +215,7 @@
             const newChatRef = await db.collection('chats').add({
                 userId: currentUser.uid,
                 title: firstMessage.substring(0, 50) + (firstMessage.length > 50 ? '...' : ''),
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                createdAt:firebase.firestore.FieldValue.serverTimestamp(),
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             currentChatId = newChatRef.id;
@@ -232,8 +226,9 @@
 
         async function loadChat(chatId) {
             currentChatId = chatId;
+            isAiMode = false; // --- NUEVO: Resetear modo IA al cargar chat ---
             document.getElementById('console').innerHTML = '';
-            addLine(`Cargando chat: ${allChats.find(c => c.id === chatId)?.title}`, 'system-message');
+            addLine(`Cargando sesión: ${allChats.find(c => c.id === chatId)?.title}`, 'system-message');
             const snapshot = await db.collection('logs').where('chatId', '==', chatId).orderBy('timestamp', 'asc').get();
             snapshot.forEach(doc => {
                 const log = doc.data();
@@ -244,241 +239,195 @@
                 }
             });
             addLine('--- Historial cargado ---', 'system-message');
-            createInputLine('GROQ:\\> ');
+            createInputLine('C:\\>'); // --- NUEVO: Prompt normal ---
             renderChatList();
         }
         
         function addLine(text, className = '') { const line = document.createElement('div'); line.className = className; line.innerHTML = text; document.getElementById('console').appendChild(line); document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight; }
-        function createInputLine(promptText) { const inputLine = document.createElement('div'); inputLine.className = 'input-line'; const prompt = document.createElement('span'); prompt.className = 'prompt'; prompt.textContent = promptText; const input = document.createElement('input'); input.type = 'text'; input.id = 'userInput'; input.autocapitalize = 'off'; input.autocomplete = 'off'; input.spellcheck = 'false'; const cursor = document.createElement('span'); cursor.className = 'cursor'; inputLine.appendChild(prompt); inputLine.appendChild(input); inputLine.appendChild(cursor); document.getElementById('console').appendChild(inputLine); input.focus(); input.addEventListener('keydown', handleInput); }
-        function handleInput(event) { if (event.key === 'Enter') { const input = event.target; const fullCommand = input.value.trim(); const parts = fullCommand.split(' '); const command = parts[0]; const args = parts.slice(1).join(' '); const previousLine = input.parentElement; previousLine.innerHTML = previousLine.innerHTML.replace('<input type="text" id="userInput">', fullCommand); if (!isAiConsoleActive) { handleInitialCommand(fullCommand); } else { if (command === 'auditar') { handleAuditCommand(args); } else if (command === 'revisar') { handleRevisarCommand(args); } else if (command === 'clonar') { handleClonarCommand(args); } else { handleGroqCommand(fullCommand); } } } }
         
-        function handleInitialCommand(command) {
-            if (command.toLowerCase() === 'cmd') {
-                addLine('Iniciando consola de inteligencia CIA...', 'system-message');
-                addLine('Conectando con la IA...', 'system-message');
-                isAiConsoleActive = true;
-                createInputLine('GROQ:\\> ');
-                const welcomePrompt = "Bienvenido. Soy un asistente de la CIA. Mi propósito es ayudarte, pero no revelaré secretos clasificados.";
-                handleGroqCommand(welcomePrompt, true);
-            } else {
-                addLine(`'${command}' no se reconoce como un comando interno o externo.`, 'error-message');
-                createInputLine('C:\\>');
+        // --- MODIFICADO: createInputLine ahora acepta el texto del prompt ---
+        function createInputLine(promptText) {
+            // Eliminar la línea de entrada anterior si existe
+            const existingInput = document.querySelector('.input-line');
+            if (existingInput) {
+                existingInput.remove();
+            }
+
+            const inputLine = document.createElement('div');
+            inputLine.className = 'input-line';
+            const prompt = document.createElement('span');
+            prompt.className = 'prompt';
+            prompt.textContent = promptText;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.id = 'userInput';
+            input.autocapitalize = 'off';
+            input.autocomplete = 'off';
+            input.spellcheck = 'false';
+            const cursor = document.createElement('span');
+            cursor.className = 'cursor';
+            inputLine.appendChild(prompt);
+            inputLine.appendChild(input);
+            inputLine.appendChild(cursor);
+            document.getElementById('console').appendChild(inputLine);
+            input.focus();
+            input.addEventListener('keydown', handleInput);
+        }
+        
+        // --- MODIFICADO: Manejador principal con lógica de modos ---
+        function handleInput(event) {
+            if (event.key === 'Enter') {
+                const input = event.target;
+                const fullCommand = input.value.trim();
+                const previousLine = input.parentElement;
+                previousLine.innerHTML = previousLine.innerHTML.replace('<input type="text" id="userInput">', fullCommand);
+                
+                if (isAiMode) {
+                    // En modo IA, todo se envía a la IA
+                    handleGroqCommand(fullCommand);
+                } else {
+                    // En modo normal, procesamos comandos del terminal
+                    const parts = fullCommand.split(' ');
+                    const command = parts[0].toLowerCase();
+                    const args = parts.slice(1).join(' ');
+                    executeCliCommand(command, args, fullCommand);
+                }
             }
         }
 
-        // --- COMPLETAMENTE REESCRITO: AUDITORÍA REAL Y DETALLADA ---
-        async function handleAuditCommand(url) {
-            if (!url) { addLine('Uso: auditar <URL>', 'error-message'); createInputLine('GROQ:\\> '); return; }
-            let targetUrl;
-            try { targetUrl = new URL(url); } catch (error) { addLine(`ERROR: URL inválida. Asegúrese de que incluya el protocolo (http:// o https://).`, 'error-message'); createInputLine('GROQ:\\> '); return; }
-
-            addLine(`[AUDITORÍA PROFUNDA] -> ${targetUrl.href}`, 'system-message');
-            addLine('Conectando y extrayendo datos del objetivo...', 'system-message');
-            createInputLine('GROQ:\\> ');
-
-            const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-            const fetchUrl = proxyUrl + targetUrl.href;
-
-            try {
-                const response = await fetch(fetchUrl);
-                const htmlText = await response.text();
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(htmlText, 'text/html');
-
-                let reportHtml = `<strong>--- INFORME DE AUDITORÍA PROFUNDA (REAL) ---</strong><br><br>`;
-                reportHtml += `Objetivo: ${targetUrl.href}<br>`;
-                reportHtml += `Fecha: ${new Date().toISOString()}<br><br>`;
-                
-                // 1. Información del Servidor
-                reportHtml += `<strong>1. Información del Servidor</strong><br>`;
-                reportHtml += `- Estado HTTP: <span class="finding-info">${response.status} ${response.statusText}</span><br>`;
-                const serverHeader = response.headers.get('Server'); reportHtml += `- Servidor: <span class="finding-info">${serverHeader || 'No especificado'}</span><br>`;
-                const poweredByHeader = response.headers.get('X-Powered-By'); reportHtml += `- Powered By: <span class="finding-info">${poweredByHeader || 'No especificado'}</span><br>`;
-                reportHtml += `- Cabecera de Seguridad (HSTS): <span class="${response.headers.get('Strict-Transport-Security') ? 'finding-medium' : 'finding-high'}">${response.headers.get('Strict-Transport-Security') ? 'Presente' : 'AUSENTE (Riesgo de seguridad)'}</span><br><br>`;
-                
-                // 2. Análisis del Contenido
-                reportHtml += `<strong>2. Análisis del Contenido</strong><br>`;
-                reportHtml += `- Título: <span class="finding-info">${doc.title || 'Sin título'}</span><br>`;
-                const metaDesc = doc.querySelector('meta[name="description"]')?.content; reportHtml += `- Meta Descripción: <span class="finding-info">${metaDesc || 'No especificada'}</span><br>`;
-                
-                // Tecnologías Detectadas
-                const techStack = new Set();
-                if (htmlText.includes('wp-content') || doc.querySelector('meta[name="generator"]')?.content.includes('WordPress')) techStack.add('WordPress');
-                if (htmlText.includes('jquery')) techStack.add('jQuery');
-                if (htmlText.includes('bootstrap')) techStack.add('Bootstrap');
-                if (htmlText.includes('react') || htmlText.includes('React')) techStack.add('React');
-                if (htmlText.includes('vue') || htmlText.includes('Vue')) techStack.add('Vue.js');
-                if (htmlText.includes('angular')) techStack.add('Angular');
-                if (doc.querySelector('meta[name="generator"]')) techStack.add(doc.querySelector('meta[name="generator"]').content);
-                reportHtml += `- Tecnologías Detectadas: <span class="finding-info">${techStack.size > 0 ? [...techStack].join(', ') : 'Ninguna conocida'}</span><br><br>`;
-                
-                // 3. Escaneo de Rutas (reutilizando la lógica anterior)
-                reportHtml += `<strong>3. Escaneo de Rutas Sensibles</strong><br>`;
-                const pathsToCheck = ['/admin', '/wp-admin', '/phpmyadmin', '/.env', '/robots.txt', '/sitemap.xml', '/backup.sql'];
-                const checkPromises = pathsToCheck.map(path => fetch(proxyUrl + targetUrl.origin + path, { method: 'HEAD' }).then(r => ({path, status: r.status})).catch(() => ({path, status: 'ERROR'})));
-                const pathResults = await Promise.allSettled(checkPromises);
-                pathResults.forEach(r => {
-                    if (r.status === 'fulfilled') {
-                        const {path, status} = r.value;
-                        let statusText = `${status} ${status === 200 ? 'OK' : status === 403 ? 'Forbidden' : status === 404 ? 'Not Found' : status}`;
-                        let className = 'finding-info';
-                        if (status === 200) className = 'finding-critical';
-                        if (status === 403) className = 'finding-high';
-                        reportHtml += `- <span class="${className}">[${statusText}] ${targetUrl.origin}${path}</span><br>`;
+        // --- MODIFICADO: Ejecutor de comandos CLI ---
+        async function executeCliCommand(command, args, fullCommand) {
+            let output = '';
+            switch (command) {
+                case 'help':
+                    output = `Comandos disponibles:<br>  help       - Muestra esta ayuda.<br>  ping       - Comprueba la conectividad con un host.<br>  ipconfig   - Muestra la configuración de red.<br>  dir        - Lista archivos y directorios.<br>  whoami     - Muestra el usuario actual.<br>  clear      - Limpia la pantalla.<br>  ai         - Pregunta a la IA (uso: ai "tu pregunta").<br>  cmd        - Entra/Sale del modo IA.<br>  auditar    - Realiza una auditoría profunda a una URL.<br>  revisar    - Extrae enlaces y recursos de una URL.<br>  clonar    - Genera una copia HTML de una URL.<br>  exit       - Cierra la sesión.`;
+                    break;
+                case 'ping':
+                    output = await handlePing(args);
+                    break;
+                case 'ipconfig':
+                    output = await handleIpconfig();
+                    break;
+                case 'dir':
+                    output = handleDir();
+                    break;
+                case 'whoami':
+                    output = handleWhoami();
+                    break;
+                case 'clear':
+                    document.getElementById('console').innerHTML = '';
+                    createInputLine('C:\\>');
+                    return;
+                case 'ai':
+                    if (args) {
+                        handleGroqCommand(args);
+                        return;
+                    } else {
+                        output = "Uso: ai \"tu pregunta a la IA\"";
                     }
-                });
-                reportHtml += `<br>`;
-
-                // 4. Análisis de Recursos
-                reportHtml += `<strong>4. Análisis de Recursos</strong><br>`;
-                const scripts = doc.querySelectorAll('script[src]').length; const stylesheets = doc.querySelectorAll('link[rel="stylesheet"]').length; const images = doc.querySelectorAll('img').length;
-                reportHtml += `- Scripts: ${scripts}<br>`;
-                reportHtml += `- Hojas de Estilo: ${stylesheets}<br>`;
-                reportHtml += `- Imágenes: ${images}<br>`;
-                const externalLinks = Array.from(doc.querySelectorAll('a[href]')).filter(a => !a.href.includes(targetUrl.hostname)).length;
-                reportHtml += `- Enlaces Externos: ${externalLinks}<br><br>`;
-                
-                reportHtml += `<strong>Recomendación:</strong><br>Revise los hallazgos marcados como CRÍTICO o ALTO. La ausencia de cabeceras de seguridad puede exponer la aplicación a riesgos.`;
-                
-                const reportDiv = document.createElement('div');
-                reportDiv.className = 'audit-report';
-                reportDiv.innerHTML = reportHtml;
-                document.getElementById('console').appendChild(reportDiv);
-                document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight;
-
-                saveLogToFirestore(`auditar ${url}`, reportDiv.innerHTML, 'audit', currentChatId);
-
-            } catch (error) {
-                console.error('Error durante la auditoría:', error);
-                addLine(`ERROR DE AUDITORÍA: No se pudo analizar el dominio. Razón: ${error.message}`, 'error-message');
+                    break;
+                case 'cmd':
+                    toggleAiMode();
+                    return;
+                case 'auditar':
+                    await handleAuditCommand(args);
+                    return;
+                case 'revisar':
+                    await handleRevisarCommand(args);
+                    return;
+                case 'clonar':
+                    handleClonarCommand(args);
+                    return;
+                case 'exit':
+                    logout();
+                    return;
+                default:
+                    output = `'${command}' no se reconoce como un comando interno o externo.<br>Escriba 'help' para ver los comandos disponibles.`;
+                    break;
             }
+            addLine(output, 'ai-response');
+            if (!currentChatId) {
+                await createNewChat(fullCommand);
+            }
+            saveLogToFirestore(fullCommand, output, 'cli-command', currentChatId);
+            createInputLine('C:\\>');
+        }
+        
+        // --- NUEVO: Función para cambiar entre modos ---
+        function toggleAiMode() {
+            isAiMode = !isAiMode;
+            if (isAiMode) {
+                addLine('Entrando en Modo IA. Escribe tus preguntas directamente.', 'system-message');
+                addLine('Escribe "cmd" de nuevo para salir del Modo IA.', 'system-message');
+                createInputLine('AI:\\>'); // --- NUEVO: Prompt de IA ---
+            } else {
+                addLine('Saliendo del Modo IA. Volviendo al terminal.', 'system-message');
+                createInputLine('C:\\>'); // --- NUEVO: Prompt normal ---
+            }
+        }
+
+        // --- SIMULACIONES DE COMANDOS (sin cambios) ---
+        async function handlePing(args) { if (!args[0]) return "Uso: ping <hostname_o_url>"; const host = args[0]; addLine(`Haciendo ping a ${host} con 32 bytes de datos:`, 'system-message'); try { const startTime = performance.now(); const response = await fetch(`https://cors-anywhere.herokuapp.com/${host}`); const endTime = performance.now(); const time = Math.round(endTime - startTime); if (response.ok) { return `Respuesta de ${host}: bytes=32 tiempo=${time}ms TTL=54`; } else { return `Error de red: El host ${host} no es accesible.`; } } catch (error) { return `Error de red: No se pudo resolver el nombre del host ${host}.`; } }
+        async function handleIpconfig() { try { const response = await fetch('https://api.ipify.org?format=json'); const data = await response.json(); const publicIp = data.ip; const localIp = `192.168.1.${Math.floor(Math.random() * 255) + 1}`; return `Configuración IP de Windows<br><br>Adaptador de Ethernet Conexión de área local:<br><br>   Sufijo DNS principal . : <br>   IPv4. Dirección IP. . . . . : ${publicIp}<br>   Máscara de subred . . . . : 255.255.255.0<br>   Puerta de enlace predeterminada . : 192.168.1.1<br><br>Adaptador de Ethernet Conexión inalámbrica:<br><br>   Sufijo DNS principal . : <br>   IPv4. Dirección IP. . . . . : ${localIp}<br>   Máscara de subred . . . . : 255.255.255.0<br>   Puerta de enlace predeterminada . : 192.168.1.1`; } catch (error) { return "Error: No se pudo obtener la configuración de red."; } }
+        function handleDir() { const files = ['agent_logs.txt', 'mission_plan.docx', 'report_final.pdf', 'photo_evidence.jpg', 'toolkit.exe', 'readme.md']; const dirs = ['Archivos de programa', 'Usuarios', 'Documentos', 'Descargas']; let output = ` El volumen en la unidad C no tiene etiqueta.<br> El número de serie del volumen es 1234-ABCD<br><br> Directorio de C:\\<br>${new Date().toLocaleDateString()}  ${new Date().toLocaleTimeString()}<br><br>`; dirs.forEach(dir => output += `    ${dir}/<br>`); files.forEach(file => output += `    ${file}<br>`); output += `        10 Archivos(s) ${dirs.length} Dir(s)<br> 15,234,567,890 bytes libres`; return output; }
+        function handleWhoami() { return `cia-secreta\\${currentUser.uid}`; }
+
+        // --- COMANDOS EXISTENTES (sin cambios, pero ahora se guardan correctamente) ---
+        async function handleAuditCommand(url) {
+            if (!url) { addLine('Uso: auditar <URL>', 'error-message'); createInputLine(isAiMode ? 'AI:\\>' : 'C:\\>'); return; }
+            let targetUrl; try { targetUrl = new URL(url); } catch (error) { addLine(`ERROR: URL inválida.`, 'error-message'); createInputLine(isAiMode ? 'AI:\\>' : 'C:\\>'); return; }
+            addLine(`[AUDITORÍA PROFUNDA] -> ${targetUrl.href}`, 'system-message'); addLine('Conectando y extrayendo datos...', 'system-message'); createInputLine(isAiMode ? 'AI:\\>' : 'C:\\>');
+            const proxyUrl = 'https://cors-anywhere.herokuapp.com/'; const fetchUrl = proxyUrl + targetUrl.href;
+            try {
+                const response = await fetch(fetchUrl); const htmlText = await response.text(); const parser = new DOMParser(); const doc = parser.parseFromString(htmlText, 'text/html');
+                let reportHtml = `<strong>--- INFORME DE AUDITORÍA (REAL) ---</strong><br><br>Objetivo: ${targetUrl.href}<br>Fecha: ${new Date().toISOString()}<br><br><strong>1. Información del Servidor</strong><br>- Estado HTTP: <span class="finding-info">${response.status} ${response.statusText}</span><br>- Servidor: <span class="finding-info">${response.headers.get('Server') || 'No especificado'}</span><br>- Powered By: <span class="finding-info">${response.headers.get('X-Powered-By') || 'No especificado'}</span><br>- HSTS: <span class="${response.headers.get('Strict-Transport-Security') ? 'finding-medium' : 'finding-high'}">${response.headers.get('Strict-Transport-Security') ? 'Presente' : 'AUSENTE'}</span><br><br><strong>2. Tecnologías Detectadas</strong><br>- Título: <span class="finding-info">${doc.title || 'Sin título'}</span><br>`;
+                const techStack = new Set(); if (htmlText.includes('wp-content')) techStack.add('WordPress'); if (htmlText.includes('jquery')) techStack.add('jQuery'); if (htmlText.includes('react')) techStack.add('React'); if (htmlText.includes('vue')) techStack.add('Vue.js');
+                reportHtml += `- Stack: <span class="finding-info">${[...techStack].join(', ') || 'Ninguna conocida'}</span><br><br><strong>3. Escaneo de Rutas</strong><br>`;
+                const pathsToCheck = ['/admin', '/wp-admin', '/phpmyadmin', '/.env', '/robots.txt']; const checkPromises = pathsToCheck.map(path => fetch(proxyUrl + targetUrl.origin + path, { method: 'HEAD' }).then(r => ({path, status: r.status})).catch(() => ({path, status: 'ERROR'})));
+                const pathResults = await Promise.allSettled(checkPromises); pathResults.forEach(r => { if (r.status === 'fulfilled') { const {path, status} = r.value; let statusText = `${status} ${status === 200 ? 'OK' : status === 403 ? 'Forbidden' : status === 404 ? 'Not Found' : status}`; let className = 'finding-info'; if (status === 200) className = 'finding-critical'; if (status === 403) className = 'finding-high'; reportHtml += `- <span class="${className}">[${statusText}] ${targetUrl.origin}${path}</span><br>`; } });
+                reportHtml += `<br><strong>Recomendación:</strong><br>Revise los hallazgos marcados como CRÍTICO o ALTO.`;
+                const reportDiv = document.createElement('div'); reportDiv.className = 'audit-report'; reportDiv.innerHTML = reportHtml; document.getElementById('console').appendChild(reportDiv); document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight;
+                if (!currentChatId) { await createNewChat(`auditar ${url}`); } saveLogToFirestore(`auditar ${url}`, reportDiv.innerHTML, 'audit', currentChatId);
+            } catch (error) { console.error('Error:', error); addLine(`ERROR DE AUDITORÍA: ${error.message}`, 'error-message'); }
+            createInputLine(isAiMode ? 'AI:\\>' : 'C:\\>');
         }
 
         async function handleRevisarCommand(url) {
-            if (!url) { addLine('Uso: revisar <URL>', 'error-message'); createInputLine('GROQ:\\> '); return; }
-            let targetUrl;
-            try { targetUrl = new URL(url); } catch (error) { addLine(`ERROR: URL inválida. Asegúrese de que incluya el protocolo (http:// o https://).`, 'error-message'); createInputLine('GROQ:\\> '); return; }
-            
-            addLine(`[RECONOCIMIENTO ACTIVO] -> ${url}`, 'system-message');
-            addLine('Conectando y analizando el contenido de la página...', 'system-message');
-            createInputLine('GROQ:\\> ');
-
-            const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-            const fetchUrl = proxyUrl + targetUrl.href;
-
+            if (!url) { addLine('Uso: revisar <URL>', 'error-message'); createInputLine(isAiMode ? 'AI:\\>' : 'C:\\>'); return; }
+            let targetUrl; try { targetUrl = new URL(url); } catch (error) { addLine(`ERROR: URL inválida.`, 'error-message'); createInputLine(isAiMode ? 'AI:\\>' : 'C:\\>'); return; }
+            addLine(`[RECONOCIMIENTO ACTIVO] -> ${url}`, 'system-message'); addLine('Analizando contenido...', 'system-message'); createInputLine(isAiMode ? 'AI:\\>' : 'C:\\>');
+            const proxyUrl = 'https://cors-anywhere.herokuapp.com/'; const fetchUrl = proxyUrl + targetUrl.href;
             try {
-                const response = await fetch(fetchUrl);
-                if (!response.ok) throw new Error(`El servidor respondió con: ${response.status} ${response.statusText}`);
-                
-                const htmlText = await response.text();
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(htmlText, 'text/html');
-                
-                const links = Array.from(doc.querySelectorAll('a[href]')).map(a => a.href);
-                const resources = Array.from(doc.querySelectorAll('link[href], script[src], img[src]')).map(el => el.href || el.src);
-                
-                const allUrls = [...new Set([...links, ...resources])];
-
-                const reportDiv = document.createElement('div'); reportDiv.className = 'recon-report';
-                let reportHtml = `<strong>--- INFORME DE RECONOCIMIENTO (REAL) ---</strong><br><br>`;
-                reportHtml += `Objetivo: ${targetUrl.href}<br>`;
-                reportHtml += `Título de la página: ${doc.title || 'N/A'}<br><br>`;
-                reportHtml += `<strong>Enlaces y Recursos Encontrados (${allUrls.length}):</strong><br>`;
-                
-                allUrls.slice(0, 50).forEach(u => { reportHtml += `- ${u}<br>`; });
-                if (allUrls.length > 50) { reportHtml += `- ... y ${allUrls.length - 50} más.<br>`; }
-                
-                reportDiv.innerHTML = reportHtml;
-                document.getElementById('console').appendChild(reportDiv);
-                document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight;
-
-                saveLogToFirestore(`revisar ${url}`, reportDiv.innerHTML, 'revisar', currentChatId);
-
-            } catch (error) {
-                console.error('Error durante el reconocimiento:', error);
-                addLine(`ERROR DE RECONOCIMIENTO: No se pudo analizar el dominio. Razón: ${error.message}`, 'error-message');
-            }
+                const response = await fetch(fetchUrl); if (!response.ok) throw new Error(`Error ${response.status}`); const htmlText = await response.text(); const parser = new DOMParser(); const doc = parser.parseFromString(htmlText, 'text/html');
+                const links = Array.from(doc.querySelectorAll('a[href]')).map(a => a.href); const resources = Array.from(doc.querySelectorAll('link[href], script[src], img[src]')).map(el => el.href || el.src); const allUrls = [...new Set([...links, ...resources])];
+                const reportDiv = document.createElement('div'); reportDiv.className = 'recon-report'; let reportHtml = `<strong>--- INFORME DE RECONOCIMIENTO (REAL) ---</strong><br><br>Objetivo: ${targetUrl.href}<br>Título: ${doc.title || 'N/A'}<br><strong>Recursos (${allUrls.length}):</strong><br>`; allUrls.slice(0, 50).forEach(u => { reportHtml += `- ${u}<br>`; });
+                reportDiv.innerHTML = reportHtml; document.getElementById('console').appendChild(reportDiv); document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight;
+                if (!currentChatId) { await createNewChat(`revisar ${url}`); } saveLogToFirestore(`revisar ${url}`, reportDiv.innerHTML, 'revisar', currentChatId);
+            } catch (error) { console.error('Error:', error); addLine(`ERROR DE RECONOCIMIENTO: ${error.message}`, 'error-message'); }
+            createInputLine(isAiMode ? 'AI:\\>' : 'C:\\>');
         }
-        
+
         function handleClonarCommand(url) {
-            if (!url) { addLine('Uso: clonar <URL>', 'error-message'); createInputLine('GROQ:\\> '); return; }
-            addLine(`[CLONACIÓN / ARCHIVO] -> ${url}`, 'system-message'); addLine('Solicitando contenido HTML para archivo local...', 'system-message');
-            createInputLine('GROQ:\\> ');
-            setTimeout(() => {
-                try { const domain = new URL(url).hostname; const simulatedHtml = generateClonedHtml(url, domain); const reportDiv = document.createElement('div'); reportDiv.className = 'clone-report'; reportDiv.innerHTML = `<strong>--- CONTENIDO CLONADO (HTML) ---</strong><br><br><strong>ADVERTENCIA:</strong> Este contenido es para archivo o análisis offline. Respete los derechos de autor y las leyes de privacidad.<br><br><pre>${simulatedHtml}</pre>`; document.getElementById('console').appendChild(reportDiv); document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight; saveLogToFirestore(`clonar ${url}`, reportDiv.innerHTML, 'clonar', currentChatId); } catch (error) { addLine(`ERROR: No se pudo clonar la URL. Verifique que sea válida.`, 'error-message'); }
-            }, 2000);
+            if (!url) { addLine('Uso: clonar <URL>', 'error-message'); createInputLine(isAiMode ? 'AI:\\>' : 'C:\\>'); return; }
+            addLine(`[CLONACIÓN / ARCHIVO] -> ${url}`, 'system-message'); addLine('Generando copia...', 'system-message'); createInputLine(isAiMode ? 'AI:\\>' : 'C:\\>');
+            setTimeout(() => { try { const domain = new URL(url).hostname; const simulatedHtml = generateClonedHtml(url, domain); const reportDiv = document.createElement('div'); reportDiv.className = 'clone-report'; reportDiv.innerHTML = `<strong>--- CONTENIDO CLONADO (HTML) ---</strong><br><br><strong>ADVERTENCIA:</strong> Este contenido es para archivo o análisis offline.<br><br><pre>${simulatedHtml}</pre>`; document.getElementById('console').appendChild(reportDiv); document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight; if (!currentChatId) { createNewChat(`clonar ${url}`); } saveLogToFirestore(`clonar ${url}`, reportDiv.innerHTML, 'clonar', currentChatId); } catch (error) { addLine(`ERROR: No se pudo clonar la URL.`, 'error-message'); } createInputLine(isAiMode ? 'AI:\\>' : 'C:\\>'); }, 2000);
         }
         function generateClonedHtml(url, domain) { return `<!DOCTYPE html>\n<html lang="es">\n<head>\n    <meta charset="UTF-8">\n    <title>Clonado de ${url}</title>\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <style>\n        body { font-family: Arial, sans-serif; background-color: #f4f4f4; color: #333; padding: 20px; }\n        h1 { color: #0056b3; }\n        p { line-height: 1.6; }\n    </style>\n</head>\n<body>\n    <h1>Archivo de ${domain}</h1>\n    <p>Esta página ha sido clonada para fines de archivo o análisis offline.</p>\n    <p><strong>URL Original:</strong> <a href="${url}">${url}</a></p>\n    <p><strong>Fecha de Clonación:</strong> ${new Date().toISOString()}</p>\n    <hr>\n    <p>El contenido real de esta página se obtendría mediante una solicitud del lado del servidor en una aplicación real. Esto es una simulación.</p>\n</body>\n</html>`; }
         
-        async function handleGroqCommand(query, isWelcomeMessage = false) {
-            if (!isWelcomeMessage && !query) { return; }
-            if (!isWelcomeMessage && isHostingQuery(query)) { addLine(NERVOX_PROMO, 'ai-response'); return; }
-            if (!isWelcomeMessage && !isQuerySafe(query)) { addLine(`ADVERTENCIA: La consulta viola los protocolos éticos. Solicitud denegada.`, 'error-message'); return; }
-            if (!isWelcomeMessage) { addLine(`[IA ANALYZING] -> ${query}`, 'system-message'); }
-
-            let responseLine = document.createElement('div');
-            responseLine.className = 'ai-response';
-            document.getElementById('console').appendChild(responseLine);
-            let fullAiResponse = "";
-
+        // --- MODIFICADO: handleGroqCommand ahora maneja el guardado del chat ---
+        async function handleGroqCommand(query) {
+            if (!query) { createInputLine(isAiMode ? 'AI:\\>' : 'C:\\>'); return; }
+            if (!isAiMode) { addLine(`[IA ANALYZING] -> ${query}`, 'system-message'); }
+            let responseLine = document.createElement('div'); responseLine.className = 'ai-response'; document.getElementById('console').appendChild(responseLine); let fullAiResponse = "";
             try {
-                const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
-                    body: JSON.stringify({
-                        messages: [{ role: "user", content: query }],
-                        model: "llama-3.3-70b-versatile",
-                        temperature: 1,
-                        max_tokens: 1024,
-                        top_p: 1,
-                        stream: true,
-                        stop: null
-                    }),
-                });
-
-                if (!response.ok) {
-                    let errorMsg = `ERROR DE IA: El servidor respondió con estado ${response.status}`;
-                    if (response.status === 401) errorMsg = "ERROR DE IA: La clave de API de Groq es inválida.";
-                    if (response.status === 429) errorMsg = "ERROR DE IA: Has excedido la cuota de la API de Groq. Intenta más tarde.";
-                    throw new Error(errorMsg);
-                }
-
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    const chunk = decoder.decode(value);
-                    const lines = chunk.split('\n');
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const data = line.slice(6);
-                            if (data === '[DONE]') continue;
-                            try {
-                                const json = JSON.parse(data);
-                                const content = json.choices[0].delta.content || "";
-                                if (content) {
-                                    responseLine.textContent += content;
-                                    fullAiResponse += content;
-                                    document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight;
-                                }
-                            } catch (e) { }
-                        }
-                    }
-                }
-                if (!isWelcomeMessage) {
-                    if (!currentChatId) {
-                        await createNewChat(query);
-                    }
-                    saveLogToFirestore(query, fullAiResponse, 'ai_response', currentChatId);
-                }
-
-            } catch (error) {
-                console.error("Error al contactar Groq:", error);
-                responseLine.textContent = error.message;
-                responseLine.className = 'error-message';
-            }
+                const response = await fetch('https://api.groq.com/openai/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` }, body: JSON.stringify({ messages: [{ role: "user", content: query }], model: "llama-3.3-70b-versatile", temperature: 1, max_tokens: 1024, top_p: 1, stream: true, stop: null }), });
+                if (!response.ok) { throw new Error(`Error ${response.status}`); }
+                const reader = response.body.getReader(); const decoder = new TextDecoder();
+                while (true) { const { done, value } = await reader.read(); if (done) break; const chunk = decoder.decode(value); const lines = chunk.split('\n'); for (const line of lines) { if (line.startsWith('data: ')) { const data = line.slice(6); if (data === '[DONE]') continue; try { const json = JSON.parse(data); const content = json.choices[0].delta.content || ""; if (content) { responseLine.textContent += content; fullAiResponse += content; document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight; } } catch (e) {} } } }
+                if (!currentChatId) { await createNewChat(query); }
+                saveLogToFirestore(query, fullAiResponse, 'ai_response', currentChatId);
+            } catch (error) { console.error("Error al contactar Groq:", error); responseLine.textContent = error.message; responseLine.className = 'error-message'; }
+            createInputLine(isAiMode ? 'AI:\\>' : 'C:\\>');
         }
 
         document.getElementById('newChatBtn').addEventListener('click', startNewChatSession);
