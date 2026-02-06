@@ -136,15 +136,29 @@
         }
 
         function initializeConsole() {
-            addLine('Sincronizando sesiones de chat...', 'system-message');
-            loadChatList().then(() => {
-                const mostRecentChat = allChats.sort((a, b) => b.updatedAt.toDate() - a.updatedAt.toDate())[0];
-                if (mostRecentChat) {
-                    loadChat(mostRecentChat.id);
+            const bootMessages = [
+                `CIA SECRETA - Bienvenido, ${currentUser.name}`,
+                'Iniciando chat...',
+                'IA Comenzando Profesional',
+                'Chat actualmente activo.'
+            ];
+            let i = 0;
+            const bootInterval = setInterval(() => {
+                if (i < bootMessages.length) {
+                    addLine(bootMessages[i], 'system-message');
+                    i++;
                 } else {
-                    startNewChatSession();
+                    clearInterval(bootInterval);
+                    loadChatList().then(() => {
+                        const mostRecentChat = allChats.sort((a, b) => b.updatedAt.toDate() - a.updatedAt.toDate())[0];
+                        if (mostRecentChat) {
+                            loadChat(mostRecentChat.id);
+                        } else {
+                            startNewChatSession();
+                        }
+                    });
                 }
-            });
+            }, 500);
         }
         
         async function saveLogToFirestore(command, output, type = 'command', chatId = null) {
