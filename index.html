@@ -49,6 +49,11 @@
         .clone-report { color: #9b59b6; border-left: 3px solid #9b59b6; padding-left: 10px; margin-top: 10px; white-space: pre-wrap;}
         .recon-report { color: #3498db; border-left: 3px solid #3498db; padding-left: 10px; margin-top: 10px;}
         .history-message { color: #6c757d; font-style: italic; }
+        .finding-critical { color: #c0392b; }
+        .finding-high { color: #e74c3c; }
+        .finding-medium { color: #f39c12; }
+        .finding-low { color: #f1c40f; }
+        .finding-info { color: #95a5a6; }
         @media (min-width: 768px) { #loginScreen { max-width: 500px; } #console { font-size: 15px; padding: 15px; } .profile-info span { font-size: 14px; } .cursor { width: 10px; height: 18px; } }
         @media (min-width: 1024px) { #loginScreen { max-width: 550px; } #console { font-size: 16px; } .profile-info span { font-size: 15px; } }
     </style>
@@ -261,17 +266,115 @@
             }
         }
 
-        function handleAuditCommand(url) {
+        // --- NUEVO Y COMPLETAMENTE REAL: COMANDO AUDITORÍA ---
+        async function handleAuditCommand(url) {
             if (!url) { addLine('Uso: auditar <URL>', 'error-message'); createInputLine('GROQ:\\> '); return; }
-            addLine(`[AUDITORÍA DE SEGURIDAD] -> ${url}`, 'system-message'); addLine('Analizando superficie de ataque...', 'system-message');
-            createInputLine('GROQ:\\> '); // <-- CAMBIO CLAVE: El prompt aparece inmediatamente
-            setTimeout(() => {
-                const report = generateAuditReport(url);
-                const reportDiv = document.createElement('div'); reportDiv.className = 'audit-report';
-                reportDiv.innerHTML = `<strong>--- INFORME DE AUDITORÍA (SIMULADO) ---</strong><br><br>${report}`;
-                document.getElementById('console').appendChild(reportDiv); document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight;
-                saveLogToFirestore(`auditar ${url}`, reportDiv.innerHTML, 'audit', currentChatId);
-            }, 2000);
+            let targetUrl;
+            try { targetUrl = new URL(url); } catch (error) { addLine(`ERROR: URL inválida. Asegúrese de que incluya el protocolo (http:// o https://).`, 'error-message'); createInputLine('GROQ:\\> '); return; }
+
+            addLine(`[AUDITORÍA DE SEGURIDAD ACTIVA] -> ${targetUrl.href}`, 'system-message');
+            addLine('Iniciando escaneo de reconocimiento en el objetivo...', 'system-message');
+            createInputLine('GROQ:\\> ');
+
+            const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+            const domain = targetUrl.hostname;
+
+            // Lista de rutas sensibles a comprobar
+            const pathsToCheck = [
+                { path: '/', desc: 'Página principal' },
+                { path: '/admin', desc: 'Panel de Administración (Genérico)' },
+                { path: '/administrator', desc: 'Panel de Administración (Alt.)' },
+                { path: '/wp-admin', desc: 'Panel de WordPress' },
+                { path: '/wp-login.php', desc: 'Login de WordPress' },
+                { path: '/phpmyadmin', desc: 'phpMyAdmin' },
+                { path: '/cpanel', desc: 'cPanel' },
+                { path: '/login', desc: 'Página de Login (Genérica)' },
+                { path: '/robots.txt', desc: 'Archivo de Robots' },
+                { path: '/sitemap.xml', desc: 'Sitemap XML' },
+                { path: '/.env', desc: 'Archivo de Entorno' },
+                { path: '/.git/HEAD', desc: 'Carpeta .git' },
+                { path: '/config.php', desc: 'Configuración PHP' },
+                { path: '/web.config', desc: 'Configuración IIS' },
+                { path: '/backup.sql', desc: 'Archivo de Backup SQL' },
+                { path: '/backup.zip', desc: 'Archivo de Backup ZIP' },
+                { path: '/test', desc: 'Directorio de Pruebas' },
+                { path: '/dev', desc: 'Directorio de Desarrollo' },
+                { path: '/api', desc: 'Punto de Acceso a la API' },
+                { path: '/uploads', desc: 'Directorio de Subidas' },
+                { path: '/images', desc: 'Directorio de Imágenes' },
+            ];
+
+            const checkPromises = pathsToCheck.map(async item => {
+                try {
+                    // Usamos una petición HEAD para ser más eficientes, solo nos interesa el estado
+                    const response = await fetch(proxyUrl + targetUrl.origin + item.path, { method: 'HEAD' });
+                    return { ...item, status: response.status, found: true };
+                } catch (error) {
+                    // El proxy o la red falló
+                    return { ...item, status: 'ERROR', found: false, error: error.message };
+                }
+            });
+
+            const results = await Promise.allSettled(checkPromises);
+            
+            let reportHtml = `<strong>--- INFORME DE AUDITORÍA (REAL) ---</strong><br><br>`;
+            reportHtml += `Objetivo: ${targetUrl.href}<br>`;
+            reportHtml += `Fecha: ${new Date().toISOString()}<br><br>`;
+            
+            // Analizar tecnología del servidor (de la primera petición)
+            const serverInfo = results[0].status === 'ERROR' ? 'No se pudo determinar' : results[0].value.status;
+            reportHtml += `<strong>Estado del Servidor Principal:</strong> ${serverInfo}<br><br>`;
+            reportHtml += `<strong>Puntos Finales Analizados:</strong><br>`;
+
+            const findings = { critical: [], high: [], medium: [], low: [], info: [], error: [] };
+
+            results.forEach(result => {
+                if (result.status === 'fulfilled') {
+                    const { path, desc, status } = result.value;
+                    const statusText = `${status} ${status === 200 ? 'OK' : status === 403 ? 'Forbidden' : status === 404 ? 'Not Found' : status}`;
+                    let finding = { path, desc, statusText };
+
+                    if (status === 200) {
+                        if (path.includes('admin') || path.includes('config') || path.includes('.env')) findings.critical.push(finding);
+                        else if (path.includes('login') || path.includes('backup')) findings.high.push(finding);
+                        else findings.info.push(finding);
+                    } else if (status === 403) {
+                        findings.high.push({ ...finding, statusText: `${statusText} (Acceso Denegado)` });
+                    } else if (status === 404) {
+                        findings.low.push(finding);
+                    }
+                } else {
+                    findings.error.push({ path: result.reason.path || 'Desconocido', error: result.reason.message });
+                }
+            });
+
+            const printFindings = (arr, className) => {
+                if (arr.length === 0) return;
+                arr.forEach(f => {
+                    reportHtml += `<span class="${className}">[${f.statusText}] ${targetUrl.origin}${f.path} (${f.desc})</span><br>`;
+                });
+            };
+            
+            printFindings(findings.critical, 'finding-critical');
+            printFindings(findings.high, 'finding-high');
+            printFindings(findings.medium, 'finding-medium');
+            printFindings(findings.low, 'finding-low');
+            printFindings(findings.info, 'finding-info');
+
+            if (findings.error.length > 0) {
+                reportHtml += `<br><strong>Errores de Red:</strong><br>`;
+                findings.error.forEach(f => reportHtml += `<span class="error-message">No se pudo escanear ${f.path}: ${f.error}</span><br>`);
+            }
+
+            reportHtml += `<br><strong>Recomendación:</strong><br>Investigue los hallazgos de riesgo CRÍTICO y ALTO. Un estado 403 indica que el recurso existe pero está protegido.`;
+            
+            const reportDiv = document.createElement('div');
+            reportDiv.className = 'audit-report';
+            reportDiv.innerHTML = reportHtml;
+            document.getElementById('console').appendChild(reportDiv);
+            document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight;
+
+            saveLogToFirestore(`auditar ${url}`, reportDiv.innerHTML, 'audit', currentChatId);
         }
 
         async function handleRevisarCommand(url) {
@@ -281,7 +384,7 @@
             
             addLine(`[RECONOCIMIENTO ACTIVO] -> ${url}`, 'system-message');
             addLine('Conectando y analizando el contenido de la página...', 'system-message');
-            createInputLine('GROQ:\\> '); // <-- CAMBIO CLAVE: El prompt aparece inmediatamente
+            createInputLine('GROQ:\\> ');
 
             const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
             const fetchUrl = proxyUrl + targetUrl.href;
@@ -323,13 +426,12 @@
         function handleClonarCommand(url) {
             if (!url) { addLine('Uso: clonar <URL>', 'error-message'); createInputLine('GROQ:\\> '); return; }
             addLine(`[CLONACIÓN / ARCHIVO] -> ${url}`, 'system-message'); addLine('Solicitando contenido HTML para archivo local...', 'system-message');
-            createInputLine('GROQ:\\> '); // <-- CAMBIO CLAVE: El prompt aparece inmediatamente
+            createInputLine('GROQ:\\> ');
             setTimeout(() => {
                 try { const domain = new URL(url).hostname; const simulatedHtml = generateClonedHtml(url, domain); const reportDiv = document.createElement('div'); reportDiv.className = 'clone-report'; reportDiv.innerHTML = `<strong>--- CONTENIDO CLONADO (HTML) ---</strong><br><br><strong>ADVERTENCIA:</strong> Este contenido es para archivo o análisis offline. Respete los derechos de autor y las leyes de privacidad.<br><br><pre>${simulatedHtml}</pre>`; document.getElementById('console').appendChild(reportDiv); document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight; saveLogToFirestore(`clonar ${url}`, reportDiv.innerHTML, 'clonar', currentChatId); } catch (error) { addLine(`ERROR: No se pudo clonar la URL. Verifique que sea válida.`, 'error-message'); }
             }, 2000);
         }
         function generateClonedHtml(url, domain) { return `<!DOCTYPE html>\n<html lang="es">\n<head>\n    <meta charset="UTF-8">\n    <title>Clonado de ${url}</title>\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <style>\n        body { font-family: Arial, sans-serif; background-color: #f4f4f4; color: #333; padding: 20px; }\n        h1 { color: #0056b3; }\n        p { line-height: 1.6; }\n    </style>\n</head>\n<body>\n    <h1>Archivo de ${domain}</h1>\n    <p>Esta página ha sido clonada para fines de archivo o análisis offline.</p>\n    <p><strong>URL Original:</strong> <a href="${url}">${url}</a></p>\n    <p><strong>Fecha de Clonación:</strong> ${new Date().toISOString()}</p>\n    <hr>\n    <p>El contenido real de esta página se obtendría mediante una solicitud del lado del servidor en una aplicación real. Esto es una simulación.</p>\n</body>\n</html>`; }
-        function generateAuditReport(url) { const domain = new URL(url).hostname; const findings = [{ type: 'Panel de Administración', path: '/admin', risk: 'Alto' }, { type: 'Panel de Administración', path: '/wp-admin', risk: 'Alto' }, { type: 'Panel de Administración', path: '/administrator', risk: 'Alto' }, { type: 'Login', path: '/login', risk: 'Medio' }, { type: 'Configuración', path: '/config', risk: 'Medio' }, { type: 'Archivo de Robots', path: '/robots.txt', risk: 'Bajo' }, { type: 'API Restringida', path: '/api/v1/users', risk: 'Medio' }, { type: 'Backup', path: '/backup.sql', risk: 'Crítico' }]; let report = `Objetivo: ${url}<br>`; report += `Fecha: ${new Date().toISOString()}<br><br>`; report += `<strong>Puntos Finales Sensibles Encontrados:</strong><br>`; findings.forEach(finding => { report += `- [${finding.risk}] ${domain}${finding.path} (${finding.type})<br>`; }); report += `<br><strong>Recomendación:</strong><br>Realice una prueba de penetración manual para validar estos hallazgos.`; return report; }
         
         async function handleGroqCommand(query, isWelcomeMessage = false) {
             if (!isWelcomeMessage && !query) { return; }
