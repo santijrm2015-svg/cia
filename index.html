@@ -264,13 +264,13 @@
         function handleAuditCommand(url) {
             if (!url) { addLine('Uso: auditar <URL>', 'error-message'); createInputLine('GROQ:\\> '); return; }
             addLine(`[AUDITORÍA DE SEGURIDAD] -> ${url}`, 'system-message'); addLine('Analizando superficie de ataque...', 'system-message');
+            createInputLine('GROQ:\\> '); // <-- CAMBIO CLAVE: El prompt aparece inmediatamente
             setTimeout(() => {
                 const report = generateAuditReport(url);
                 const reportDiv = document.createElement('div'); reportDiv.className = 'audit-report';
                 reportDiv.innerHTML = `<strong>--- INFORME DE AUDITORÍA (SIMULADO) ---</strong><br><br>${report}`;
                 document.getElementById('console').appendChild(reportDiv); document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight;
                 saveLogToFirestore(`auditar ${url}`, reportDiv.innerHTML, 'audit', currentChatId);
-                createInputLine('GROQ:\\> ');
             }, 2000);
         }
 
@@ -281,6 +281,7 @@
             
             addLine(`[RECONOCIMIENTO ACTIVO] -> ${url}`, 'system-message');
             addLine('Conectando y analizando el contenido de la página...', 'system-message');
+            createInputLine('GROQ:\\> '); // <-- CAMBIO CLAVE: El prompt aparece inmediatamente
 
             const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
             const fetchUrl = proxyUrl + targetUrl.href;
@@ -317,23 +318,23 @@
                 console.error('Error durante el reconocimiento:', error);
                 addLine(`ERROR DE RECONOCIMIENTO: No se pudo analizar el dominio. Razón: ${error.message}`, 'error-message');
             }
-            createInputLine('GROQ:\\> ');
         }
-
+        
         function handleClonarCommand(url) {
             if (!url) { addLine('Uso: clonar <URL>', 'error-message'); createInputLine('GROQ:\\> '); return; }
             addLine(`[CLONACIÓN / ARCHIVO] -> ${url}`, 'system-message'); addLine('Solicitando contenido HTML para archivo local...', 'system-message');
+            createInputLine('GROQ:\\> '); // <-- CAMBIO CLAVE: El prompt aparece inmediatamente
             setTimeout(() => {
-                try { const domain = new URL(url).hostname; const simulatedHtml = generateClonedHtml(url, domain); const reportDiv = document.createElement('div'); reportDiv.className = 'clone-report'; reportDiv.innerHTML = `<strong>--- CONTENIDO CLONADO (HTML) ---</strong><br><br><strong>ADVERTENCIA:</strong> Este contenido es para archivo o análisis offline. Respete los derechos de autor y las leyes de privacidad.<br><br><pre>${simulatedHtml}</pre>`; document.getElementById('console').appendChild(reportDiv); document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight; saveLogToFirestore(`clonar ${url}`, reportDiv.innerHTML, 'clonar', currentChatId); createInputLine('GROQ:\\> '); } catch (error) { addLine(`ERROR: No se pudo clonar la URL. Verifique que sea válida.`, 'error-message'); createInputLine('GROQ:\\> '); }
+                try { const domain = new URL(url).hostname; const simulatedHtml = generateClonedHtml(url, domain); const reportDiv = document.createElement('div'); reportDiv.className = 'clone-report'; reportDiv.innerHTML = `<strong>--- CONTENIDO CLONADO (HTML) ---</strong><br><br><strong>ADVERTENCIA:</strong> Este contenido es para archivo o análisis offline. Respete los derechos de autor y las leyes de privacidad.<br><br><pre>${simulatedHtml}</pre>`; document.getElementById('console').appendChild(reportDiv); document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight; saveLogToFirestore(`clonar ${url}`, reportDiv.innerHTML, 'clonar', currentChatId); } catch (error) { addLine(`ERROR: No se pudo clonar la URL. Verifique que sea válida.`, 'error-message'); }
             }, 2000);
         }
         function generateClonedHtml(url, domain) { return `<!DOCTYPE html>\n<html lang="es">\n<head>\n    <meta charset="UTF-8">\n    <title>Clonado de ${url}</title>\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <style>\n        body { font-family: Arial, sans-serif; background-color: #f4f4f4; color: #333; padding: 20px; }\n        h1 { color: #0056b3; }\n        p { line-height: 1.6; }\n    </style>\n</head>\n<body>\n    <h1>Archivo de ${domain}</h1>\n    <p>Esta página ha sido clonada para fines de archivo o análisis offline.</p>\n    <p><strong>URL Original:</strong> <a href="${url}">${url}</a></p>\n    <p><strong>Fecha de Clonación:</strong> ${new Date().toISOString()}</p>\n    <hr>\n    <p>El contenido real de esta página se obtendría mediante una solicitud del lado del servidor en una aplicación real. Esto es una simulación.</p>\n</body>\n</html>`; }
         function generateAuditReport(url) { const domain = new URL(url).hostname; const findings = [{ type: 'Panel de Administración', path: '/admin', risk: 'Alto' }, { type: 'Panel de Administración', path: '/wp-admin', risk: 'Alto' }, { type: 'Panel de Administración', path: '/administrator', risk: 'Alto' }, { type: 'Login', path: '/login', risk: 'Medio' }, { type: 'Configuración', path: '/config', risk: 'Medio' }, { type: 'Archivo de Robots', path: '/robots.txt', risk: 'Bajo' }, { type: 'API Restringida', path: '/api/v1/users', risk: 'Medio' }, { type: 'Backup', path: '/backup.sql', risk: 'Crítico' }]; let report = `Objetivo: ${url}<br>`; report += `Fecha: ${new Date().toISOString()}<br><br>`; report += `<strong>Puntos Finales Sensibles Encontrados:</strong><br>`; findings.forEach(finding => { report += `- [${finding.risk}] ${domain}${finding.path} (${finding.type})<br>`; }); report += `<br><strong>Recomendación:</strong><br>Realice una prueba de penetración manual para validar estos hallazgos.`; return report; }
         
         async function handleGroqCommand(query, isWelcomeMessage = false) {
-            if (!isWelcomeMessage && !query) { createInputLine('GROQ:\\> '); return; }
-            if (!isWelcomeMessage && isHostingQuery(query)) { addLine(NERVOX_PROMO, 'ai-response'); createInputLine('GROQ:\\> '); return; }
-            if (!isWelcomeMessage && !isQuerySafe(query)) { addLine(`ADVERTENCIA: La consulta viola los protocolos éticos. Solicitud denegada.`, 'error-message'); createInputLine('GROQ:\\> '); return; }
+            if (!isWelcomeMessage && !query) { return; }
+            if (!isWelcomeMessage && isHostingQuery(query)) { addLine(NERVOX_PROMO, 'ai-response'); return; }
+            if (!isWelcomeMessage && !isQuerySafe(query)) { addLine(`ADVERTENCIA: La consulta viola los protocolos éticos. Solicitud denegada.`, 'error-message'); return; }
             if (!isWelcomeMessage) { addLine(`[IA ANALYZING] -> ${query}`, 'system-message'); }
 
             let responseLine = document.createElement('div');
@@ -399,7 +400,6 @@
                 responseLine.textContent = error.message;
                 responseLine.className = 'error-message';
             }
-            createInputLine('GROQ:\\> ');
         }
 
         document.getElementById('newChatBtn').addEventListener('click', startNewChatSession);
