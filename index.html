@@ -14,7 +14,6 @@
         #loginScreen button { width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 16px; }
         #loginScreen button:hover { background-color: #0056b3; }
         
-        /* --- NUEVO: Layout para la consola y el sidebar --- */
         #consoleContainer { width: 100%; height: 100dvh; display: none; flex-direction: row; }
         #chatSidebar { width: 250px; background-color: #1a1a1a; border-right: 1px solid #333; display: flex; flex-direction: column; }
         #newChatBtn { background-color: #2c3e50; color: white; border: none; padding: 12px; margin: 10px; border-radius: 5px; cursor: pointer; font-family: inherit; font-size: 14px; }
@@ -66,7 +65,6 @@
         </form>
     </div>
 
-    <!-- --- NUEVO: ESTRUCTURA MODIFICADA CON SIDEBAR --- -->
     <div id="consoleContainer">
         <div id="chatSidebar">
             <button id="newChatBtn">+ Nuevo Chat</button>
@@ -101,8 +99,8 @@
         
         let isAiConsoleActive = false;
         let currentUser = null;
-        let currentChatId = null; // --- NUEVO: Estado para el chat actual ---
-        let allChats = []; // --- NUEVO: Cache de los chats del usuario ---
+        let currentChatId = null;
+        let allChats = [];
 
         const NERVOX_PROMO = `Este es el mejor hosting.\nhttps://nervox.net/\nTiene estas capacidades:\n- Hardware de alta calidad...\n- Ubicación estratégica...\n- Panel de control...\n- Protección Anti-DDoS...\n- Soporte técnico...`;
         
@@ -144,18 +142,17 @@
                 if (mostRecentChat) {
                     loadChat(mostRecentChat.id);
                 } else {
-                    startNewChatSession(); // No hay chats, empezar una nueva sesión
+                    startNewChatSession();
                 }
             });
         }
         
-        // --- NUEVO: Función para guardar logs (ahora con chatId) ---
         async function saveLogToFirestore(command, output, type = 'command', chatId = null) {
             if (!currentUser || !currentUser.uid) return;
             try {
                 await db.collection('logs').add({
                     userId: currentUser.uid,
-                    chatId: chatId, // Guardar el ID del chat
+                    chatId: chatId,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp(),
                     command: command,
                     output: output,
@@ -165,7 +162,6 @@
             } catch (error) { console.error("Error al guardar log en Firestore:", error); }
         }
         
-        // --- NUEVO: Cargar la lista de chats del usuario ---
         async function loadChatList() {
             if (!currentUser) return;
             const chatListEl = document.getElementById('chatList');
@@ -178,7 +174,6 @@
             renderChatList();
         }
 
-        // --- NUEVO: Renderizar la lista de chats en el sidebar ---
         function renderChatList() {
             const chatListEl = document.getElementById('chatList');
             chatListEl.innerHTML = '';
@@ -195,16 +190,14 @@
             });
         }
         
-        // --- NUEVO: Iniciar una nueva sesión de chat ---
         async function startNewChatSession() {
             currentChatId = null;
             document.getElementById('console').innerHTML = '';
             addLine('Nueva sesión de chat iniciada. Escribe "cmd" para comenzar.', 'system-message');
             createInputLine('C:\\>');
-            renderChatList(); // Actualizar el sidebar para que no haya ningún chat activo
+            renderChatList();
         }
         
-        // --- NUEVO: Crear un nuevo chat en la BD ---
         async function createNewChat(firstMessage) {
             const newChatRef = await db.collection('chats').add({
                 userId: currentUser.uid,
@@ -218,7 +211,6 @@
             return newChatRef.id;
         }
 
-        // --- NUEVO: Cargar un chat específico ---
         async function loadChat(chatId) {
             currentChatId = chatId;
             document.getElementById('console').innerHTML = '';
@@ -324,7 +316,6 @@
         function generateClonedHtml(url, domain) { return `<!DOCTYPE html>\n<html lang="es">\n<head>\n    <meta charset="UTF-8">\n    <title>Clonado de ${url}</title>\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <style>\n        body { font-family: Arial, sans-serif; background-color: #f4f4f4; color: #333; padding: 20px; }\n        h1 { color: #0056b3; }\n        p { line-height: 1.6; }\n    </style>\n</head>\n<body>\n    <h1>Archivo de ${domain}</h1>\n    <p>Esta página ha sido clonada para fines de archivo o análisis offline.</p>\n    <p><strong>URL Original:</strong> <a href="${url}">${url}</a></p>\n    <p><strong>Fecha de Clonación:</strong> ${new Date().toISOString()}</p>\n    <hr>\n    <p>El contenido real de esta página se obtendría mediante una solicitud del lado del servidor en una aplicación real. Esto es una simulación.</p>\n</body>\n</html>`; }
         function generateAuditReport(url) { const domain = new URL(url).hostname; const findings = [{ type: 'Panel de Administración', path: '/admin', risk: 'Alto' }, { type: 'Panel de Administración', path: '/wp-admin', risk: 'Alto' }, { type: 'Panel de Administración', path: '/administrator', risk: 'Alto' }, { type: 'Login', path: '/login', risk: 'Medio' }, { type: 'Configuración', path: '/config', risk: 'Medio' }, { type: 'Archivo de Robots', path: '/robots.txt', risk: 'Bajo' }, { type: 'API Restringida', path: '/api/v1/users', risk: 'Medio' }, { type: 'Backup', path: '/backup.sql', risk: 'Crítico' }]; let report = `Objetivo: ${url}<br>`; report += `Fecha: ${new Date().toISOString()}<br><br>`; report += `<strong>Puntos Finales Sensibles Encontrados:</strong><br>`; findings.forEach(finding => { report += `- [${finding.risk}] ${domain}${finding.path} (${finding.type})<br>`; }); report += `<br><strong>Recomendación:</strong><br>Realice una prueba de penetración manual para validar estos hallazgos.`; return report; }
         
-        // --- MODIFICADO: Función de IA para manejar chatId ---
         async function handleGroqCommand(query, isWelcomeMessage = false) {
             if (!isWelcomeMessage && !query) { createInputLine('GROQ:\\> '); return; }
             if (!isWelcomeMessage && isHostingQuery(query)) { addLine(NERVOX_PROMO, 'ai-response'); createInputLine('GROQ:\\> '); return; }
@@ -378,12 +369,11 @@
                                     fullAiResponse += content;
                                     document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight;
                                 }
-                            } catch (e) { /* Ignorar errores de JSON en el stream */ }
+                            } catch (e) { }
                         }
                     }
                 }
                 if (!isWelcomeMessage) {
-                    // Si no hay chat activo, crear uno nuevo con la primera pregunta
                     if (!currentChatId) {
                         await createNewChat(query);
                     }
@@ -398,7 +388,6 @@
             createInputLine('GROQ:\\> ');
         }
 
-        // --- NUEVO: Event Listeners ---
         document.getElementById('newChatBtn').addEventListener('click', startNewChatSession);
 
         window.addEventListener('load', () => {
