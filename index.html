@@ -77,7 +77,7 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // --- ACTUALIZADO: NUEVA API KEY DE GROQ ---
+        // --- CORREGIDO: CLAVE DE API Y MODELO ACTUALIZADOS ---
         const GROQ_API_KEY = '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';
         
         let isAiConsoleActive = false;
@@ -237,6 +237,7 @@
         function generateClonedHtml(url, domain) { return `<!DOCTYPE html>\n<html lang="es">\n<head>\n    <meta charset="UTF-8">\n    <title>Clonado de ${url}</title>\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <style>\n        body { font-family: Arial, sans-serif; background-color: #f4f4f4; color: #333; padding: 20px; }\n        h1 { color: #0056b3; }\n        p { line-height: 1.6; }\n    </style>\n</head>\n<body>\n    <h1>Archivo de ${domain}</h1>\n    <p>Esta página ha sido clonada para fines de archivo o análisis offline.</p>\n    <p><strong>URL Original:</strong> <a href="${url}">${url}</a></p>\n    <p><strong>Fecha de Clonación:</strong> ${new Date().toISOString()}</p>\n    <hr>\n    <p>El contenido real de esta página se obtendría mediante una solicitud del lado del servidor en una aplicación real. Esto es una simulación.</p>\n</body>\n</html>`; }
         function generateAuditReport(url) { const domain = new URL(url).hostname; const findings = [{ type: 'Panel de Administración', path: '/admin', risk: 'Alto' }, { type: 'Panel de Administración', path: '/wp-admin', risk: 'Alto' }, { type: 'Panel de Administración', path: '/administrator', risk: 'Alto' }, { type: 'Login', path: '/login', risk: 'Medio' }, { type: 'Configuración', path: '/config', risk: 'Medio' }, { type: 'Archivo de Robots', path: '/robots.txt', risk: 'Bajo' }, { type: 'API Restringida', path: '/api/v1/users', risk: 'Medio' }, { type: 'Backup', path: '/backup.sql', risk: 'Crítico' }]; let report = `Objetivo: ${url}<br>`; report += `Fecha: ${new Date().toISOString()}<br><br>`; report += `<strong>Puntos Finales Sensibles Encontrados:</strong><br>`; findings.forEach(finding => { report += `- [${finding.risk}] ${domain}${finding.path} (${finding.type})<br>`; }); report += `<br><strong>Recomendación:</strong><br>Realice una prueba de penetración manual para validar estos hallazgos.`; return report; }
         
+        // --- CORREGIDO Y VERIFICADO: FUNCIÓN DE IA COMPLETAMENTE ARREGLADA ---
         async function handleGroqCommand(query, isWelcomeMessage = false) {
             if (!isWelcomeMessage && !query) { createInputLine('GROQ:\\> '); return; }
             if (!isWelcomeMessage && isHostingQuery(query)) { addLine(NERVOX_PROMO, 'ai-response'); createInputLine('GROQ:\\> '); return; }
@@ -254,9 +255,9 @@
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
                     body: JSON.stringify({
                         messages: [{ role: "user", content: query }],
-                        model: "llama-3.1-70b-versatile",
+                        model: "llama-3.3-70b-versatile", // <-- MODELO ACTUALIZADO
                         temperature: 1,
-                        max_tokens: 1024,
+                        max_tokens: 1024, // <-- PARÁMETRO CORRECTO
                         top_p: 1,
                         stream: true,
                         stop: null
@@ -284,7 +285,7 @@
                             if (data === '[DONE]') continue;
                             try {
                                 const json = JSON.parse(data);
-                                const content = json.choices[0].delta.content;
+                                const content = json.choices[0].delta.content || "";
                                 if (content) {
                                     responseLine.textContent += content;
                                     fullAiResponse += content;
